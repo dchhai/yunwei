@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>创建工单 - 运维工单系统</title>
+    <style>
+        /* 保持原有样式不变 */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: "Microsoft YaHei", sans-serif;
+        }
+        body {
+            background-color: #f5f7fa;
+            padding: 20px;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            padding: 30px;
+        }
+        .header {
+            margin-bottom: 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .header h1 {
+            font-size: 24px;
+            color: #333;
+        }
+        .btn-back {
+            padding: 8px 16px;
+            background-color: #6c757d;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            text-decoration: none;
+            font-size: 14px;
+        }
+        .btn-back:hover {
+            background-color: #5a6268;
+        }
+
+        /* 表单样式 */
+        .form-group {
+            margin-bottom: 25px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #666;
+        }
+        .form-control {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        .form-control:focus {
+            outline: none;
+            border-color: #409eff;
+            box-shadow: 0 0 0 2px rgba(64, 158, 255, 0.2);
+        }
+        textarea.form-control {
+            min-height: 150px;
+            resize: vertical;
+            line-height: 1.6;
+        }
+        .form-hint {
+            margin-top: 5px;
+            font-size: 12px;
+            color: #999;
+        }
+
+        /* 附件上传样式 */
+        #attachments {
+            padding: 8px 0;
+        }
+        #attachmentPreview {
+            margin-top: 10px;
+            padding: 10px;
+            background-color: #f9f9f9;
+            border-radius: 4px;
+            min-height: 40px;
+        }
+        #attachmentPreview div {
+            margin: 5px 0;
+            color: #333;
+            font-size: 14px;
+        }
+
+        /* 提交按钮样式 */
+        .form-actions {
+            margin-top: 40px;
+            display: flex;
+            justify-content: flex-end;
+        }
+        .btn-submit {
+            padding: 10px 24px;
+            background-color: #409eff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        .btn-submit:hover {
+            background-color: #66b1ff;
+        }
+        .btn-submit:disabled {
+            background-color: #a0cfff;
+            cursor: not-allowed;
+        }
+
+        /* 错误提示 */
+        .error-message {
+            color: #ff4d4f;
+            font-size: 12px;
+            margin-top: 5px;
+            display: none;
+        }
+        .error-message.show {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>创建运维工单</h1>
+            <a href="index.html" class="btn-back">返回工单列表</a>
+        </div>
+
+        <form id="createForm">
+            <div class="form-group">
+                <label for="title">工单标题 <span style="color: #ff4d4f;">*</span></label>
+                <input type="text" id="title" class="form-control" placeholder="请输入工单标题">
+                <div class="error-message" id="titleError">请输入工单标题（最多50个字符）</div>
+            </div>
+
+            <div class="form-group">
+                <label for="ops_system_id">所属运维系统 <span style="color: #ff4d4f;">*</span></label>
+                <select id="ops_system_id" class="form-control">
+                    <option value="">加载中...</option>
+                </select>
+                <div class="error-message" id="opsSystemError">请选择所属运维系统</div>
+            </div>
+
+            <div class="form-group">
+                <label for="category">问题类型 <span style="color: #ff4d4f;">*</span></label>
+                <select id="category" class="form-control">
+                    <option value="">请选择分类</option>
+                    <option value="1">系统故障</option>
+                    <option value="2">网络问题</option>
+                    <option value="3">软件安装</option>
+                    <option value="4">硬件维护</option>
+                    <option value="5">账号权限</option>
+                    <option value="6">其他请求</option>
+                </select>
+                <div class="error-message" id="categoryError">请选择工单分类</div>
+            </div>
+
+            <div class="form-group">
+                <label for="priority">优先级 <span style="color: #ff4d4f;">*</span></label>
+                <select id="priority" class="form-control">
+                    <option value="">请选择优先级</option>
+                    <option value="1">低 - 不影响正常工作，可延后处理</option>
+                    <option value="2">中 - 轻微影响工作，需按计划处理</option>
+                    <option value="3">高 - 严重影响工作，需立即处理</option>
+                </select>
+                <div class="error-message" id="priorityError">请选择优先级</div>
+            </div>
+
+            <div class="form-group">
+                <label for="content">问题描述 <span style="color: #ff4d4f;">*</span></label>
+                <textarea id="content" class="form-control" placeholder="请详细描述您遇到的问题，包括错误信息、操作步骤等"></textarea>
+                <div class="form-hint">请尽可能详细描述，有助于快速解决问题</div>
+                <div class="error-message" id="contentError">请输入问题描述（至少10个字符）</div>
+            </div>
+
+            <div class="form-group">
+                <label for="attachments">附件（可选，最多5个，单个≤50MB）</label>
+                <input type="file" id="attachments" multiple accept="image/*,.pdf,.txt">
+                <div class="form-hint">支持图片、PDF、文本文件，最多上传5个</div>
+                <div id="attachmentPreview"></div>
+                <div class="error-message" id="attachmentError"></div>
+            </div>
+
+            <div class="form-actions">
+                <button type="submit" class="btn-submit" id="submitBtn">提交工单</button>
+            </div>
+        </form>
+    </div>
+
+    <script src="js/jquery-3.6.4.min.js"></script>
+    <script>
+        // 页面加载时检查登录状态并加载运维系统列表
+        $(document).ready(function() {
+            const userInfo = localStorage.getItem("userInfo");
+            if (!userInfo) {
+                alert("请先登录");
+                window.location.href = "login.html";
+            }
+
+            // 加载运维系统列表
+            loadOpsSystems();
+            
+            // 初始化附件预览
+            initAttachmentPreview();
+        });
+
+        // 加载运维系统列表
+        function loadOpsSystems() {
+            const $opsSelect = $("#ops_system_id");
+            
+            $.ajax({
+                url: "get_ops_systems.php",
+                method: "GET",
+                dataType: "json",
+                success: function(res) {
+                    if (res.success && res.data.length > 0) {
+                        $opsSelect.html('<option value="">请选择运维系统</option>');
+                        res.data.forEach(system => {
+                            $opsSelect.append(`<option value="${system.id}">${system.system_name}</option>`);
+                        });
+                    } else {
+                        $opsSelect.html('<option value="">暂无运维系统数据</option>');
+                        $("#opsSystemError").text("未找到运维系统数据，请联系管理员").addClass('show');
+                    }
+                },
+                error: function() {
+                    $opsSelect.html('<option value="">加载失败</option>');
+                    $("#opsSystemError").text("运维系统列表加载失败，请刷新页面重试").addClass('show');
+                }
+            });
+        }
+
+        // 附件预览功能
+        function initAttachmentPreview() {
+            $("#attachments").change(function(e) {
+                const files = e.target.files;
+                const $preview = $("#attachmentPreview");
+                const $error = $("#attachmentError");
+                $preview.html('');
+                $error.removeClass('show');
+
+                // 验证数量
+                if (files.length > 5) {
+                    $error.text("最多只能上传5个附件").addClass('show');
+                    $(this).val('');
+                    return;
+                }
+
+                // 验证大小和类型
+                const allowedTypes = [
+                    'image/jpeg', 'image/png', 'image/gif', 
+                    'application/pdf', 'text/plain'
+                ];
+                let isValid = true;
+
+                for (let i = 0; i < files.length; i++) {
+                    // 验证大小（50MB）
+                    if (files[i].size > 50 * 1024 * 1024) {
+                        $error.text(`文件 "${files[i].name}" 超过50MB限制`).addClass('show');
+                        isValid = false;
+                        break;
+                    }
+
+                    // 验证类型
+                    if (!allowedTypes.includes(files[i].type)) {
+                        $error.text(`文件 "${files[i].name}" 类型不支持（仅支持图片、PDF、TXT）`).addClass('show');
+                        isValid = false;
+                        break;
+                    }
+
+                    // 显示预览
+                    $preview.append(`
+                        <div>
+                            <span>${files[i].name}</span>
+                            <span style="margin-left: 10px; color: #666;">${(files[i].size / (1024*1024)).toFixed(1)}MB</span>
+                        </div>
+                    `);
+                }
+
+                if (!isValid) {
+                    $(this).val('');
+                }
+            });
+        }
+
+        // 表单验证
+        function validateForm() {
+            let isValid = true;
+            const title = $("#title").val().trim();
+            const category = $("#category").val();
+            const priority = $("#priority").val();
+            const content = $("#content").val().trim();
+            const opsSystemId = $("#ops_system_id").val();
+
+            // 标题验证
+            if (!title || title.length > 50) {
+                $("#titleError").addClass('show');
+                isValid = false;
+            } else {
+                $("#titleError").removeClass('show');
+            }
+
+            // 运维系统验证
+            if (!opsSystemId) {
+                $("#opsSystemError").addClass('show');
+                isValid = false;
+            } else {
+                $("#opsSystemError").removeClass('show');
+            }
+
+            // 分类验证
+            if (!category) {
+                $("#categoryError").addClass('show');
+                isValid = false;
+            } else {
+                $("#categoryError").removeClass('show');
+            }
+
+            // 优先级验证
+            if (!priority) {
+                $("#priorityError").addClass('show');
+                isValid = false;
+            } else {
+                $("#priorityError").removeClass('show');
+            }
+
+            // 内容验证
+            if (!content || content.length < 10) {
+                $("#contentError").addClass('show');
+                isValid = false;
+            } else {
+                $("#contentError").removeClass('show');
+            }
+
+            return isValid;
+        }
+
+        // 表单提交处理（核心修改：先创建工单，再上传附件）
+        $("#createForm").submit(function(e) {
+            e.preventDefault();
+
+            // 验证表单
+            if (!validateForm()) {
+                return;
+            }
+
+            // 禁用提交按钮防止重复提交
+            const $submitBtn = $("#submitBtn");
+            $submitBtn.text("提交中...").prop("disabled", true);
+
+            const userInfo = JSON.parse(localStorage.getItem("userInfo"));
+            const formData = {
+                title: $("#title").val().trim(),
+                content: $("#content").val().trim(),
+                creator_id: userInfo.id,
+                problem_type: $("#category").val(),
+                priority: $("#priority").val(),
+                ops_system_id: $("#ops_system_id").val()
+            };
+
+            // 1. 先创建工单，获取真实ticket_id
+            $.ajax({
+                url: "create.php",
+                method: "POST",
+                contentType: "application/json",
+                data: JSON.stringify(formData)
+            }).then((res) => {
+                if (!res.success) {
+                    throw new Error(res.message || "工单创建失败");
+                }
+                const ticketId = res.data.ticket_id;
+                const files = $("#attachments")[0].files;
+                const uploadPromises = [];
+
+                // 2. 用真实ticket_id上传附件
+                if (files.length > 0) {
+                    for (let i = 0; i < files.length; i++) {
+                        const fileData = new FormData();
+                        fileData.append('file', files[i]);
+                        fileData.append('ticket_id', ticketId); // 使用真实工单ID
+                        
+                        uploadPromises.push(
+                            $.ajax({
+                                url: "upload_attachment.php",
+                                method: "POST",
+                                data: fileData,
+                                contentType: false,
+                                processData: false,
+                                success: function(res) {
+                                    if (!res.success) {
+                                        throw new Error(res.message || `文件 "${files[i].name}" 上传失败`);
+                                    }
+                                }
+                            })
+                        );
+                    }
+                }
+
+                return Promise.all(uploadPromises).then(() => ticketId);
+            }).then((ticketId) => {
+                alert("工单创建成功，附件上传完成！");
+                window.location.href = "index.html";
+            }).catch((error) => {
+                alert(error.message);
+                $submitBtn.text("提交工单").prop("disabled", false);
+            });
+        });
+
+        // 输入时实时验证
+        $("#title, #content, #category, #priority, #ops_system_id").on("input change", function() {
+            validateForm();
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,163 @@
+CREATE TABLE `ticket_transfer` (
+  `id` int(11) NOT NULL AUTO_INCREMENT COMMENT '转派记录ID（主键）',
+  `ticket_id` int(11) NOT NULL COMMENT '工单ID（外键）',
+  `old_handler_id` int(11) NOT NULL COMMENT '原处理人ID（外键）',
+  `new_handler_id` int(11) NOT NULL COMMENT '新处理人ID（外键）',
+  `transfer_reason` varchar(200) NOT NULL COMMENT '转派原因（≥5字）',
+  `transfer_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '转派时间',
+  PRIMARY KEY (`id`),
+  KEY `idx_ticket_transfer` (`ticket_id`) COMMENT '工单索引',
+  KEY `fk_transfer_old` (`old_handler_id`),
+  KEY `fk_transfer_new` (`new_handler_id`),
+  CONSTRAINT `fk_transfer_new` FOREIGN KEY (`new_handler_id`) REFERENCES `user` (`id`) ON UPDATE CASCADE,
+  CONSTRAINT `fk_transfer_old` FOREIGN KEY (`old_handler_id`) REFERENCES `user` (`id`) ON UPDATE CASCADE,
+  CONSTRAINT `fk_transfer_ticket` FOREIGN KEY (`ticket_id`) REFERENCES `ticket` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COMMENT='工单转派记录表（关联工单表和用户表-原/新处理人，工单级联删除，处理人级联更新）';
+
+CREATE TABLE `org` (
+  `id` int(11) NOT NULL AUTO_INCREMENT COMMENT '组织ID（主键）',
+  `org_name` varchar(50) NOT NULL COMMENT '组织名称',
+  `org_level` varchar(20) DEFAULT NULL COMMENT '所属层级（如“部门-小组”）',
+  `manager` varchar(20) DEFAULT NULL COMMENT '负责人姓名',
+  `phone` varchar(20) DEFAULT NULL COMMENT '联系电话（脱敏存储）',
+  `dept` varchar(50) DEFAULT NULL COMMENT '所属部门',
+  `status` tinyint(1) NOT NULL DEFAULT '1' COMMENT '状态（0=禁用，1=启用）',
+  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_org_name` (`org_name`) COMMENT '组织名称唯一'
+) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COMMENT='组织信息表';
+
+CREATE TABLE `user` (
+  `id` int(11) NOT NULL AUTO_INCREMENT COMMENT '用户ID（主键）',
+  `username` varchar(30) NOT NULL COMMENT '用户名',
+  `password` varchar(100) NOT NULL COMMENT '密码（加密存储，如bcrypt）',
+  `org_id` int(11) NOT NULL COMMENT '所属组织ID（外键）',
+  `role_id` int(11) NOT NULL COMMENT '所属角色ID（外键）',
+  `phone` varchar(20) DEFAULT NULL COMMENT '联系电话（脱敏存储）',
+  `zjd_code` varchar(30) DEFAULT NULL COMMENT '浙政钉号码（脱敏存储）',
+  `status` tinyint(1) NOT NULL DEFAULT '1' COMMENT '状态（0=禁用，1=启用）',
+  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_username` (`username`) COMMENT '用户名唯一',
+  KEY `fk_user_org` (`org_id`),
+  KEY `fk_user_role` (`role_id`),
+  CONSTRAINT `fk_user_org` FOREIGN KEY (`org_id`) REFERENCES `org` (`id`) ON UPDATE CASCADE,
+  CONSTRAINT `fk_user_role` FOREIGN KEY (`role_id`) REFERENCES `role` (`id`) ON UPDATE CASCADE
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COMMENT='用户表（关联组织表和角色表，级联更新）';
+
+CREATE TABLE `ticket` (
+  `id` int(11) NOT NULL AUTO_INCREMENT COMMENT '工单ID（主键）',
+  `ticket_no` varchar(20) NOT NULL COMMENT '工单编号（规则：YYYYMMDD+6位随机数）',
+  `title` varchar(100) NOT NULL COMMENT '工单标题',
+  `description` text NOT NULL COMMENT '问题描述（≥10字）',
+  `problem_type` varchar(20) NOT NULL COMMENT '问题类型（功能故障/性能问题/界面异常/数据错误/其他）',
+  `ops_system_id` int(11) NOT NULL COMMENT '所属运维系统ID（外键）',
+  `creator_id` int(11) NOT NULL COMMENT '反馈人ID（外键）',
+  `handler_id` int(11) DEFAULT NULL COMMENT '处理人ID（外键，NULL=待分派）',
+  `status` tinyint(1) NOT NULL DEFAULT '0' COMMENT '状态（0=待分派，1=处理中，2=已完结，3=已转派）',
+  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `handle_time` datetime DEFAULT NULL COMMENT '开始处理时间',
+  `finish_time` datetime DEFAULT NULL COMMENT '完结时间',
+  `handle_duration` int(11) DEFAULT NULL COMMENT '处理时长（单位：分钟）',
+  `remark` text COMMENT '处理结果（完结时必填）',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_ticket_no` (`ticket_no`) COMMENT '工单编号唯一',
+  KEY `idx_creator` (`creator_id`) COMMENT '反馈人索引',
+  KEY `idx_handler` (`handler_id`) COMMENT '处理人索引',
+  KEY `idx_system_status` (`ops_system_id`,`status`) COMMENT '系统-状态组合索引',
+  CONSTRAINT `fk_ticket_creator` FOREIGN KEY (`creator_id`) REFERENCES `user` (`id`) ON UPDATE CASCADE,
+  CONSTRAINT `fk_ticket_handler` FOREIGN KEY (`handler_id`) REFERENCES `user` (`id`) ON UPDATE SET NULL,
+  CONSTRAINT `fk_ticket_system` FOREIGN KEY (`ops_system_id`) REFERENCES `ops_system` (`id`) ON UPDATE CASCADE
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COMMENT='工单表（关联运维系统表、用户表-反馈人/处理人，系统和反馈人级联更新，处理人更新时设为NULL）';
+
+CREATE TABLE `ops_system` (
+  `id` int(11) NOT NULL AUTO_INCREMENT COMMENT '系统ID（主键）',
+  `system_name` varchar(50) NOT NULL COMMENT '运维系统名称',
+  `customer_name` varchar(50) DEFAULT NULL COMMENT '客户名称',
+  `maintain_start` date DEFAULT NULL COMMENT '运维开始时间',
+  `maintain_end` date DEFAULT NULL COMMENT '运维结束时间',
+  `pm_name` varchar(20) DEFAULT NULL COMMENT '项目经理姓名',
+  `pm_phone` varchar(20) DEFAULT NULL COMMENT '项目经理联系电话',
+  `engineer_id` int(11) DEFAULT NULL COMMENT '专属运维工程师ID（外键）',
+  `status` tinyint(1) NOT NULL DEFAULT '1' COMMENT '状态（0=停用，1=启用）',
+  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_system_name` (`system_name`) COMMENT '系统名称唯一',
+  KEY `fk_ops_engineer` (`engineer_id`),
+  CONSTRAINT `fk_ops_engineer` FOREIGN KEY (`engineer_id`) REFERENCES `user` (`id`) ON UPDATE SET NULL
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COMMENT='运维系统信息表（关联用户表-工程师，更新时设为NULL）';
+
+CREATE TABLE `ticket_attachment` (
+  `id` int(11) NOT NULL AUTO_INCREMENT COMMENT '附件ID（主键）',
+  `ticket_id` int(11) NOT NULL COMMENT '工单ID（外键）',
+  `file_name` varchar(100) NOT NULL COMMENT '文件名',
+  `file_path` varchar(255) NOT NULL COMMENT '文件存储路径（服务器路径/OSS地址）',
+  `file_size` decimal(5,1) NOT NULL COMMENT '文件大小（单位：MB，≤50MB）',
+  `file_type` varchar(10) NOT NULL COMMENT '文件类型（照片/视频）',
+  `upload_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '上传时间',
+  PRIMARY KEY (`id`),
+  KEY `idx_ticket` (`ticket_id`) COMMENT '工单索引',
+  CONSTRAINT `fk_attach_ticket` FOREIGN KEY (`ticket_id`) REFERENCES `ticket` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COMMENT='工单附件表（关联工单表，级联删除）';
+
+CREATE TABLE `role_permission` (
+  `id` int(11) NOT NULL AUTO_INCREMENT COMMENT '关联ID（主键）',
+  `role_id` int(11) NOT NULL COMMENT '角色ID（外键）',
+  `perm_id` int(11) NOT NULL COMMENT '权限ID（外键）',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_role_perm` (`role_id`,`perm_id`) COMMENT '角色-权限组合唯一',
+  KEY `fk_rp_perm` (`perm_id`),
+  CONSTRAINT `fk_rp_perm` FOREIGN KEY (`perm_id`) REFERENCES `permission` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_rp_role` FOREIGN KEY (`role_id`) REFERENCES `role` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='角色-权限关联表（关联角色表和权限表，级联删除）';
+
+CREATE TABLE `role` (
+  `id` int(11) NOT NULL AUTO_INCREMENT COMMENT '角色ID（主键）',
+  `role_name` varchar(20) NOT NULL COMMENT '角色名称（系统管理员/运维工程师/工单填报人员）',
+  `description` varchar(200) DEFAULT NULL COMMENT '角色核心职责',
+  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_role_name` (`role_name`) COMMENT '角色名称唯一'
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COMMENT='角色表';
+
+CREATE TABLE `permission` (
+  `id` int(11) NOT NULL AUTO_INCREMENT COMMENT '权限ID（主键）',
+  `perm_name` varchar(50) NOT NULL COMMENT '权限名称（如“查看全量工单”）',
+  `perm_code` varchar(50) NOT NULL COMMENT '权限标识（如“ticket:all:view”）',
+  `description` varchar(200) DEFAULT NULL COMMENT '权限说明',
+  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_perm_code` (`perm_code`) COMMENT '权限标识唯一'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='权限表';
+
+CREATE TABLE `operation_log` (
+  `id` int(11) NOT NULL AUTO_INCREMENT COMMENT '日志ID（主键）',
+  `user_id` int(11) NOT NULL COMMENT '操作人ID（外键）',
+  `operate_type` varchar(20) NOT NULL COMMENT '操作类型（查看/修改/导出/提交等）',
+  `operate_object` varchar(50) NOT NULL COMMENT '操作对象（如“ticket:123”“org:45”）',
+  `operate_ip` varchar(20) DEFAULT NULL COMMENT '操作IP地址',
+  `operate_detail` text COMMENT '操作详情',
+  `operate_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '操作时间',
+  PRIMARY KEY (`id`),
+  KEY `idx_user_time` (`user_id`,`operate_time`) COMMENT '操作人-时间组合索引',
+  CONSTRAINT `fk_log_user` FOREIGN KEY (`user_id`) REFERENCES `user` (`id`) ON UPDATE CASCADE
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COMMENT='操作日志表（保留1年，关联用户表，级联更新）';
+
+CREATE TABLE `evaluation` (
+  `id` int(11) NOT NULL AUTO_INCREMENT COMMENT '评价ID（主键）',
+  `ticket_id` int(11) NOT NULL COMMENT '工单ID（外键，唯一）',
+  `evaluator_id` int(11) NOT NULL COMMENT '评价人ID（外键，即工单反馈人）',
+  `star_level` tinyint(1) NOT NULL COMMENT '评价星级（1-5星）',
+  `remark` varchar(200) DEFAULT NULL COMMENT '评价备注（≤200字）',
+  `notify_time` datetime DEFAULT NULL COMMENT '评价通知发送时间',
+  `link_expire` datetime DEFAULT NULL COMMENT '评价链接有效期（72小时）',
+  `evaluate_time` datetime DEFAULT NULL COMMENT '评价提交时间',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_ticket` (`ticket_id`) COMMENT '一个工单仅一条评价',
+  KEY `idx_evaluator` (`evaluator_id`) COMMENT '评价人索引',
+  CONSTRAINT `fk_eval_evaluator` FOREIGN KEY (`evaluator_id`) REFERENCES `user` (`id`) ON UPDATE CASCADE,
+  CONSTRAINT `fk_eval_ticket` FOREIGN KEY (`ticket_id`) REFERENCES `ticket` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COMMENT='工单评价表（关联工单表和用户表-评价人，工单级联删除，评价人级联更新）';

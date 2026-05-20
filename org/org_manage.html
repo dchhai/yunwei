@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>组织管理 - 运维工单系统</title>
+    <link rel="stylesheet" href="../css/common.css">
+</head>
+<body>
+    <div class="header">
+        <div class="logo">
+            <div class="logo-icon">⚡</div>
+            运维工单系统
+        </div>
+        <div class="user-info">
+            <span class="user-name" id="userName">--</span>
+            <button class="btn-logout" id="btnLogout">退出登录</button>
+        </div>
+    </div>
+
+    <div class="sidebar">
+        <a href="../index.html" class="menu-item" id="menuTicket">工单管理</a>
+        <a href="../ops_system/ops_system_manage.html" class="menu-item" id="menuOpsSystem">运维系统管理</a>
+        <a href="../user/user_manage.html" class="menu-item" id="menuUser">用户管理</a>
+        <a href="org_manage.html" class="menu-item active" id="menuOrg">组织管理</a>
+        <a href="../role/role_manage.html" class="menu-item" id="menuRole">角色管理</a>
+    </div>
+
+    <div class="main-content">
+        <h3 class="page-title">组织管理</h3>
+
+        <div class="form-actions">
+            <button class="btn-submit" id="addOrgBtn">新增组织</button>
+        </div>
+
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>组织名称</th>
+                    <th>所属层级</th>
+                    <th>负责人</th>
+                    <th>联系电话</th>
+                    <th>所属部门</th>
+                    <th>状态</th>
+                    <th>创建时间</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody id="orgTableBody"></tbody>
+        </table>
+
+        <div id="orgModal" class="modal">
+            <div class="modal-content">
+                <h3 id="modalTitle">新增组织</h3>
+                <input type="hidden" id="orgId">
+                <div class="form-group">
+                    <label>组织名称</label>
+                    <input type="text" id="orgName" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label>所属层级</label>
+                    <input type="text" id="orgLevel" class="form-control" placeholder="如：部门-小组">
+                </div>
+                <div class="form-group">
+                    <label>负责人</label>
+                    <input type="text" id="manager" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label>联系电话</label>
+                    <input type="text" id="phone" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label>所属部门</label>
+                    <input type="text" id="dept" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label>状态</label>
+                    <select id="status" class="form-control">
+                        <option value="1">启用</option>
+                        <option value="0">禁用</option>
+                    </select>
+                </div>
+                <div class="modal-actions">
+                    <button class="btn-cancel" id="cancelOrgBtn">取消</button>
+                    <button class="btn-confirm" id="saveOrgBtn">保存</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="deleteModal" class="modal">
+            <div class="modal-content">
+                <h3>确认删除</h3>
+                <p>确定要删除该组织吗？删除后关联的用户将无法正常使用。</p>
+                <input type="hidden" id="deleteOrgId">
+                <div class="modal-actions">
+                    <button class="btn-cancel" id="cancelDeleteBtn">取消</button>
+                    <button class="btn-confirm" id="confirmDeleteBtn" style="background-color: #f56c6c;">确认删除</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="../js/jquery-3.6.4.min.js"></script>
+    <script>
+        $(function() {
+            $.ajaxSetup({
+                beforeSend: function(xhr) {
+                    const userInfo = localStorage.getItem("userInfo");
+                    if (userInfo) {
+                        try {
+                            const parsedUserInfo = JSON.parse(userInfo);
+                            xhr.setRequestHeader('Authorization', 'Bearer ' + parsedUserInfo.id);
+                        } catch (e) {
+                            console.error('解析用户信息失败', e);
+                        }
+                    }
+                }
+            });
+            
+            const userInfo = JSON.parse(localStorage.getItem("userInfo"));
+            if (!userInfo || !userInfo.id) {
+                window.location.href = "../login.html";
+                return;
+            }
+            
+            $('#userName').text(userInfo.name || userInfo.username);
+            
+            function controlMenuDisplay() {
+                const roleName = userInfo.role_name;
+                if (roleName === '系统管理员') {
+                } else if (roleName === '工单填报人员') {
+                    $("#menuOpsSystem, #menuUser, #menuOrg, #menuRole").hide();
+                } else if (roleName === '运维工程师') {
+                    $("#menuOpsSystem, #menuUser, #menuOrg, #menuRole").hide();
+                } else {
+                    $("#menuOpsSystem, #menuUser, #menuOrg, #menuRole").hide();
+                }
+            }
+            
+            controlMenuDisplay();
+            
+            loadOrgList();
+
+            $("#addOrgBtn").click(function() {
+                $("#modalTitle").text("新增组织");
+                $("#orgId").val("");
+                $("#orgName").val("");
+                $("#orgLevel").val("");
+                $("#manager").val("");
+                $("#phone").val("");
+                $("#dept").val("");
+                $("#status").val(1);
+                $("#orgModal").css("display", "flex");
+            });
+            
+            $("#cancelOrgBtn").click(function() {
+                $("#orgModal").css("display", "none");
+            });
+
+            $("#saveOrgBtn").click(saveOrg);
+
+            $("#cancelDeleteBtn").click(function() {
+                $("#deleteModal").css("display", "none");
+            });
+
+            $("#confirmDeleteBtn").click(deleteOrg);
+            
+            $('#btnLogout').click(function() {
+                localStorage.removeItem('userInfo');
+                window.location.href = '../login.html';
+            });
+        });
+
+        function loadOrgList() {
+            $.get("list.php", function(res) {
+                if (res.success) {
+                    let html = "";
+                    res.data.forEach(org => {
+                        const statusText = org.status == 1 ? "禁用" : "启用";
+                        const statusClass = org.status == 1 ? "btn-danger" : "btn-primary";
+                        const statusDisplay = org.status == 1 ? 
+                            '<span class="status-text active">启用</span>' : 
+                            '<span class="status-text inactive">禁用</span>';
+                        html += `
+                            <tr>
+                                <td>${org.id}</td>
+                                <td>${org.org_name}</td>
+                                <td>${org.org_level || '-'}</td>
+                                <td>${org.manager || '-'}</td>
+                                <td>${org.phone || '-'}</td>
+                                <td>${org.dept || '-'}</td>
+                                <td>${statusDisplay}</td>
+                                <td>${org.create_time}</td>
+                                <td>
+                                    <button class="btn btn-edit" onclick="editOrg(${org.id})">编辑</button>
+                                    <button class="btn ${statusClass}" onclick="changeStatus(${org.id}, ${org.status})">${statusText}</button>
+                                    <button class="btn btn-danger" onclick="showDeleteModal(${org.id})">删除</button>
+                                </td>
+                            </tr>
+                        `;
+                    });
+                    $("#orgTableBody").html(html);
+                } else {
+                    alert(res.message);
+                }
+            });
+        }
+
+        function editOrg(id) {
+            $.get(`list.php?id=${id}`, function(res) {
+                if (res.success && res.data.length > 0) {
+                    const org = res.data[0];
+                    $("#modalTitle").text("编辑组织");
+                    $("#orgId").val(org.id);
+                    $("#orgName").val(org.org_name);
+                    $("#orgLevel").val(org.org_level);
+                    $("#manager").val(org.manager);
+                    $("#phone").val(org.phone);
+                    $("#dept").val(org.dept);
+                    $("#status").val(org.status);
+                    $("#orgModal").css("display", "flex");
+                }
+            });
+        }
+
+        function saveOrg() {
+            const id = $("#orgId").val();
+            const data = {
+                org_name: $("#orgName").val(),
+                org_level: $("#orgLevel").val(),
+                manager: $("#manager").val(),
+                phone: $("#phone").val(),
+                dept: $("#dept").val(),
+                status: $("#status").val()
+            };
+
+            if (!data.org_name) {
+                alert("组织名称为必填项");
+                return;
+            }
+
+            const url = id ? "update.php" : "create.php";
+            $.ajax({
+                url: url,
+                method: "POST",
+                contentType: "application/json",
+                data: JSON.stringify({ ...data, id: id }),
+                success: function(res) {
+                    if (res && res.message) {
+                        alert(res.message);
+                        if (res.success) {
+                            $("#orgModal").css("display", "none");
+                            loadOrgList();
+                        }
+                    } else {
+                        alert("保存失败，请重试");
+                    }
+                },
+                error: function(xhr, status, error) {
+                    alert("保存失败: " + error);
+                }
+            });
+        }
+
+        function showDeleteModal(id) {
+            $("#deleteOrgId").val(id);
+            $("#deleteModal").css("display", "flex");
+        }
+
+        function deleteOrg() {
+            const id = $("#deleteOrgId").val();
+            $.post("delete.php", { id: id }, function(res) {
+                alert(res.message);
+                if (res.success) {
+                    $("#deleteModal").css("display", "none");
+                    loadOrgList();
+                }
+            }, "json");
+        }
+
+        function changeStatus(id, status) {
+            $.ajax({
+                url: "update.php",
+                method: "POST",
+                contentType: "application/json",
+                data: JSON.stringify({ id: id, status: status == 1 ? 0 : 1 }),
+                success: function(res) {
+                    if (res && res.message) {
+                        alert(res.message);
+                        if (res.success) {
+                            loadOrgList();
+                        }
+                    } else {
+                        alert("操作失败，请重试");
+                    }
+                },
+                error: function(xhr, status, error) {
+                    alert("操作失败: " + error);
+                }
+            });
+        }
+    </script>
+</body>
+</html>

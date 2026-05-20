@@ -1,0 +1,12 @@
+uploads/
+*.log
+list_errors.log
+upload_errors.log
+*.jpg
+*.jpeg
+*.png
+*.gif
+*.ico
+db.php
+db2.php
+common/db.php

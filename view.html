@@ -1,0 +1,1015 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>工单详情 - 运维工单系统</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+    <style>
+            /* 附件样式 */
+            .reply-attachments {
+                margin-top: 10px;
+                display: flex;
+                flex-wrap: wrap;
+                gap: 10px;
+            }
+            
+            .attachment-item {
+                margin-right: 10px;
+                margin-bottom: 5px;
+            }
+            
+            .attachment-image {
+                max-width: 100px;
+                max-height: 100px;
+                cursor: pointer;
+                border: 1px solid #ddd;
+                border-radius: 4px;
+                transition: transform 0.2s;
+            }
+            
+            .attachment-image:hover {
+                transform: scale(1.05);
+            }
+            
+            .attachment-file {
+                display: flex;
+                align-items: center;
+                padding: 5px 10px;
+                background-color: #f5f5f5;
+                border-radius: 4px;
+                text-decoration: none;
+                color: #333;
+                font-size: 14px;
+            }
+            
+            .attachment-file:hover {
+                background-color: #e0e0e0;
+            }
+            
+            .attachment-file i {
+                margin-right: 5px;
+                color: #666;
+            }
+            
+            .file-size {
+                margin-left: 10px;
+                font-size: 12px;
+                color: #999;
+            }
+            
+            /* 图片预览样式 */
+            .image-preview {
+                display: none;
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background-color: rgba(0, 0, 0, 0.8);
+                z-index: 1000;
+                justify-content: center;
+                align-items: center;
+            }
+            
+            .image-preview-content {
+                position: relative;
+                max-width: 90%;
+                max-height: 90%;
+            }
+            
+            .preview-image {
+                max-width: 100%;
+                max-height: 100%;
+            }
+            
+            .close-preview {
+                position: absolute;
+            top: -30px;
+            right: 0;
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+        }
+        
+        /* 基础样式 */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: "Microsoft YaHei", sans-serif;
+        }
+        body {
+            background-color: #f5f7fa;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 15px rgba(0,0,0,0.08);
+            padding: 30px;
+        }
+        .header {
+            margin-bottom: 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .header h1 {
+            font-size: 24px;
+            color: #333;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .btn-back {
+            padding: 8px 16px;
+            background-color: #409eff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .btn-back:hover {
+            background-color: #66b1ff;
+        }
+
+        /* 工单详情样式 */
+        .ticket-detail {
+            margin-bottom: 30px;
+            background: #fff;
+            border-radius: 8px;
+            padding: 25px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+        .detail-section {
+            margin-bottom: 25px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+        .detail-section:last-child {
+            border-bottom: none;
+        }
+        .detail-section-title {
+            font-size: 16px;
+            color: #409eff;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .detail-item {
+            margin-bottom: 15px;
+            display: flex;
+            flex-wrap: wrap;
+        }
+        .detail-label {
+            flex: 0 0 140px;
+            font-weight: bold;
+            color: #666;
+            padding-top: 4px;
+        }
+        .detail-content {
+            flex: 1;
+            min-width: 250px;
+            color: #333;
+            line-height: 1.6;
+        }
+
+        /* 状态和优先级标签 */
+        .status-tag {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            color: white;
+            font-weight: 500;
+        }
+        .status-0 { background-color: #ff9800; } /* 待分派 */
+        .status-1 { background-color: #409eff; } /* 处理中 */
+        .status-2 { background-color: #52c41a; } /* 已完结 */
+        .status-3 { background-color: #faad14; } /* 已转派 */
+
+        .priority-tag {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            color: white;
+            font-weight: 500;
+        }
+        .priority-1 { background-color: #666; } /* 低 */
+        .priority-2 { background-color: #409eff; } /* 中 */
+        .priority-3 { background-color: #ff4d4f; } /* 高 */
+
+        /* 附件样式 */
+        .attachment-list {
+            margin-top: 10px;
+        }
+        .attachment-item {
+            margin: 8px 0;
+            padding: 10px;
+            background: #f9f9f9;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            transition: background 0.2s;
+        }
+        .attachment-item:hover {
+            background: #f0f0f0;
+        }
+        .attachment-item i {
+            color: #409eff;
+        }
+        .attachment-item a {
+            color: #409eff;
+            text-decoration: none;
+            flex: 1;
+        }
+        .attachment-item a:hover {
+            text-decoration: underline;
+        }
+        .attachment-size {
+            color: #999;
+            font-size: 12px;
+            white-space: nowrap;
+        }
+        .attachment-image {
+            width: 40px;
+            height: 40px;
+            object-fit: cover;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        .attachment-image:hover {
+            transform: scale(1.05);
+        }
+
+        /* 处理按钮区域 */
+        .handle-actions {
+            margin: 30px 0;
+            padding: 20px;
+            background-color: #f9f9f9;
+            border-radius: 6px;
+            border-left: 4px solid #409eff;
+        }
+        .btn-operate {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .btn-handle {
+            background-color: #409eff;
+            color: white;
+        }
+        .btn-handle:hover {
+            background-color: #66b1ff;
+        }
+        .btn-resolve {
+            background-color: #67c23a;
+            color: white;
+        }
+        .btn-resolve:hover {
+            background-color: #85ce61;
+        }
+
+        /* 回复区域 */
+        .reply-section {
+            margin-top: 30px;
+        }
+        .reply-section h2 {
+            font-size: 18px;
+            margin-bottom: 20px;
+            color: #333;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .reply-list {
+            margin-bottom: 30px;
+        }
+        .reply-item {
+            padding: 15px;
+            background-color: #f9f9f9;
+            border-radius: 6px;
+            margin-bottom: 15px;
+            transition: transform 0.2s;
+        }
+        .reply-item:hover {
+            transform: translateY(-2px);
+        }
+        .reply-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            color: #666;
+            font-size: 14px;
+        }
+        .reply-author {
+            font-weight: 500;
+        }
+        .reply-time {
+            color: #999;
+            font-size: 12px;
+        }
+        .reply-content {
+            color: #333;
+            line-height: 1.6;
+        }
+
+        /* 回复表单 */
+        .reply-form-container {
+            background: #f9f9f9;
+            padding: 20px;
+            border-radius: 8px;
+        }
+        .reply-form {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        .form-group textarea {
+            width: 100%;
+            height: 120px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            resize: vertical;
+            font-size: 14px;
+        }
+        .form-group textarea:focus {
+            border-color: #409eff;
+            outline: none;
+        }
+        .attachment-upload {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .upload-btn {
+            padding: 6px 12px;
+            background: #eee;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        #uploadFile {
+            display: none;
+        }
+        .upload-files-list {
+            margin-top: 10px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .upload-file-item {
+            background: #fff;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .remove-file {
+            color: #ff4d4f;
+            cursor: pointer;
+        }
+        .btn-submit {
+            padding: 10px 20px;
+            background-color: #409eff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            align-self: flex-start;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .btn-submit:hover {
+            background-color: #66b1ff;
+        }
+
+        /* 提示消息 */
+        .toast {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 10px 20px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            border-radius: 4px;
+            z-index: 1000;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        .toast.show {
+            opacity: 1;
+        }
+
+        /* 加载状态 */
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(64, 158, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: #409eff;
+            animation: spin 1s ease-in-out infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* 响应式调整 */
+        @media (max-width: 768px) {
+            .container {
+                padding: 15px;
+            }
+            .detail-label {
+                flex: 0 0 100%;
+                margin-bottom: 5px;
+            }
+            .btn-submit {
+                align-self: stretch;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="toast" id="toast"></div>
+    <!-- 图片预览模态框 -->
+    <div class="image-preview" id="imagePreview">
+        <div class="image-preview-content">
+            <span class="close-preview" onclick="closePreview()">&times;</span>
+            <img src="" alt="预览图片" class="preview-image" id="previewImage">
+        </div>
+    </div>
+    <div class="container">
+        <div class="header">
+            <h1>
+                <i class="fa fa-ticket"></i> 工单详情
+            </h1>
+            <a href="index.html" class="btn-back">
+                <i class="fa fa-arrow-left"></i> 返回工单列表
+            </a>
+        </div>
+
+        <div class="ticket-detail">
+            <!-- 1. 基础信息区域 -->
+            <div class="detail-section">
+                <div class="detail-section-title">
+                    <i class="fa fa-info-circle"></i> 基础信息
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">工单标题</span>
+                    <div class="detail-content" id="ticketTitle"></div>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">工单状态</span>
+                    <div class="detail-content">
+                        <span class="status-tag" id="ticketStatus"></span>
+                    </div>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">优先级</span>
+                    <div class="detail-content">
+                        <span class="priority-tag" id="ticketPriority"></span>
+                    </div>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">工单提交时间</span>
+                    <div class="detail-content" id="ticketCreateTime"></div>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">联系人</span>
+                    <div class="detail-content" id="contactName"></div>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">联系电话</span>
+                    <div class="detail-content" id="contactPhone"></div>
+                </div>
+            </div>
+
+            <!-- 2. 系统与负责人信息 -->
+            <div class="detail-section">
+                <div class="detail-section-title">
+                    <i class="fa fa-cogs"></i> 系统与负责人信息
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">所属运维系统</span>
+                    <div class="detail-content" id="ticketSystemName"></div>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">问题类型</span>
+                    <div class="detail-content" id="ticketProblemType"></div>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">项目经理姓名</span>
+                    <div class="detail-content" id="pmName"></div>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">专属运维工程师</span>
+                    <div class="detail-content" id="engineerName"></div>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">运维期时间</span>
+                    <div class="detail-content" id="maintainPeriod"></div>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">当前处理人</span>
+                    <div class="detail-content" id="handlerName"></div>
+                </div>
+            </div>
+
+            <!-- 3. 工单内容与附件 -->
+            <div class="detail-section">
+                <div class="detail-section-title">
+                    <i class="fa fa-file-text"></i> 工单内容与附件
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">问题描述</span>
+                    <div class="detail-content" id="ticketDescription"></div>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">附件</span>
+                    <div id="attachmentList" class="detail-content attachment-list">
+                        <div class="loading"></div>
+                        <span>加载中...</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 工单处理按钮 -->
+        <div class="handle-actions" id="handleActions"></div>
+
+        <!-- 回复区域 -->
+        <div class="reply-section">
+            <h2><i class="fa fa-comments"></i> 回复记录</h2>
+            <div class="reply-list" id="replyList">
+                <div style="text-align:center; padding:20px;">
+                    <div class="loading"></div>
+                    <span>加载回复记录中...</span>
+                </div>
+            </div>
+
+            <!-- 回复表单 -->
+            <div class="reply-form-container">
+                <div class="reply-form">
+                    <div class="form-group">
+                        <textarea id="replyContent" placeholder="请输入回复内容..."></textarea>
+                    </div>
+                    <div class="form-group">
+                        <div class="attachment-upload">
+                            <div class="upload-btn" onclick="document.getElementById('uploadFile').click()">
+                                <i class="fa fa-paperclip"></i> 添加附件
+                            </div>
+                            <input type="file" id="uploadFile" multiple accept="*" onchange="handleFileSelection(event)">
+                            <span id="fileCount" style="font-size:12px;color:#666;">0个文件</span>
+                        </div>
+                        <div class="upload-files-list" id="uploadFilesList"></div>
+                    </div>
+                    <button class="btn-submit" onclick="submitReply()">
+                        <i class="fa fa-paper-plane"></i> 提交回复
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/jquery-3.6.4.min.js"></script>
+    <script>
+        const ticketId = new URLSearchParams(window.location.search).get('id');
+        const uploadedFiles = [];
+
+        if (!ticketId) {
+            showToast('未找到工单ID');
+            setTimeout(() => window.location.href = 'index.html', 1500);
+        }
+
+        $(document).ready(function() {
+            loadTicketDetail();
+            loadReplies();
+        });
+
+        // 显示提示消息
+        function showToast(message) {
+            const toast = $('#toast');
+            toast.text(message).addClass('show');
+            setTimeout(() => toast.removeClass('show'), 3000);
+        }
+
+        // 加载工单详情
+        function loadTicketDetail() {
+            $.ajax({
+                url: "get_ticket.php",
+                method: "GET",
+                data: { id: ticketId },
+                beforeSend: () => {
+                    // 正确：仅更新内容，不删除原有元素
+                    $('#ticketTitle').text('加载中...');
+                    $('#ticketStatus').text('加载中...').removeClass().addClass('status-tag');
+                    $('#ticketPriority').text('加载中...').removeClass().addClass('priority-tag');
+                    $('#ticketCreateTime').text('加载中...');
+                    $('#contactName').text('加载中...');
+                    $('#contactPhone').text('加载中...');
+                    $('#ticketSystemName').text('加载中...');
+                    $('#ticketProblemType').text('加载中...');
+                    $('#pmName').text('加载中...');
+                    $('#engineerName').text('加载中...');
+                    $('#maintainPeriod').text('加载中...');
+                    $('#handlerName').text('加载中...');
+                    $('#ticketDescription').text('加载中...');
+                    $("#attachmentList").html('<div class="loading"></div><span>加载中...</span>');
+                },
+                success: function(res) {
+                    console.log('工单接口返回数据:', res);
+                    if (res.success && res.data) {
+                        renderTicketDetail(res.data);
+                        loadAttachments(ticketId);
+                        renderHandleActions(res.data);
+                    } else {
+                        showToast(res.message || '获取工单数据失败');
+                        $('.detail-content').html('加载失败');
+                    }
+                },
+                error: function(xhr) {
+                    showToast('接口请求失败: ' + xhr.statusText);
+                    $('.detail-content').html('加载失败');
+                }
+            });
+        }
+
+        // 渲染工单详情（严格匹配接口返回字段）
+        function renderTicketDetail(ticket) {
+            // 1. 基础信息
+            $('#ticketTitle').text(ticket.title || '无标题');
+            $('#ticketStatus')
+                .text(ticket.status_text || '未知状态')
+                .removeClass()
+                .addClass('status-tag status-' + ticket.status);
+            $('#ticketPriority')
+                .text(ticket.priority_text || '未知优先级')
+                .removeClass()
+                .addClass('priority-tag priority-' + ticket.priority);
+            $('#ticketCreateTime').text(formatTime(ticket.create_time) || '未知时间');
+            $('#contactName').text(ticket.contact_name || '未知');
+            $('#contactPhone').text(ticket.contact_phone || '未知');
+
+            // 2. 系统与负责人信息
+            $('#ticketSystemName').text(ticket.system_name || '未知系统');
+            $('#ticketProblemType').text(ticket.problem_type_text || '未知类型');
+            $('#pmName').text(ticket.pm_name || '未设置');
+            $('#engineerName').text(ticket.engineer_name || '未分配');
+            $('#maintainPeriod').text(ticket.maintain_period || '未设置');
+            $('#handlerName').text(ticket.handler_name || '未分配');
+
+            // 3. 工单内容
+            $('#ticketDescription').html(ticket.description ? ticket.description.replace(/\n/g, '<br>') : '无描述');
+        }
+
+        // 加载附件
+        function loadAttachments(ticketId) {
+            $.ajax({
+                url: "get_attachments.php",
+                method: "GET",
+                data: { ticket_id: ticketId },
+                success: function(res) {
+                    if (res.success && res.data.length > 0) {
+                        let html = '';
+                        res.data.forEach(attach => {
+                            // 判断是否为图片（通过file_type或扩展名）
+                            const isImage = attach.file_type && attach.file_type.startsWith('image/') || 
+                                           attach.file_name.match(/\.(jpg|jpeg|png|gif|webp)$/i);
+                            html += `
+                                <div class="attachment-item">
+                                    ${isImage ? `
+                                        <img src="get_attachment.php?id=${attach.id}" alt="${attach.file_name}" class="attachment-image" onclick="previewImage('get_attachment.php?id=${attach.id}')">
+                                    ` : `
+                                        <i class="fa ${getFileIcon(attach.file_name)}"></i>
+                                        <a href="get_attachment.php?id=${attach.id}" target="_blank" download="${attach.file_name}">
+                                            ${attach.file_name}
+                                        </a>
+                                    `}
+                                    <span class="attachment-size">${parseFloat(attach.file_size || 0).toFixed(2)}KB</span>
+                                </div>
+                            `;
+                        });
+                        $("#attachmentList").html(html);
+                    } else {
+                        $("#attachmentList").html("无附件");
+                    }
+                },
+                error: function() {
+                    $("#attachmentList").html("加载附件失败");
+                }
+            });
+        }
+
+        // 获取文件图标
+        function getFileIcon(fileName) {
+            const ext = fileName.split('.').pop().toLowerCase();
+            switch(ext) {
+                case 'doc': case 'docx': return 'fa-file-word-o';
+                case 'xls': case 'xlsx': return 'fa-file-excel-o';
+                case 'ppt': case 'pptx': return 'fa-file-powerpoint-o';
+                case 'pdf': return 'fa-file-pdf-o';
+                case 'jpg': case 'jpeg': case 'png': case 'gif': return 'fa-file-image-o';
+                case 'zip': case 'rar': case '7z': return 'fa-file-archive-o';
+                default: return 'fa-file-o';
+            }
+        }
+
+        // 渲染处理按钮
+        function renderHandleActions(ticket) {
+            const userInfo = JSON.parse(localStorage.getItem("userInfo"));
+            if (!userInfo) {
+                window.location.href = 'login.html';
+                return;
+            }
+
+            const $actions = $("#handleActions");
+            $actions.html('');
+
+            // 根据工单状态显示不同操作按钮
+            if (ticket.status === "0" || ticket.status === 0) { // 待分派
+                $actions.append(`
+                    <button class="btn-operate btn-handle" onclick="handleTicket(${ticket.id}, 1)">
+                        <i class="fa fa-user-plus"></i> 分配给我处理
+                    </button>
+                `);
+            } else if ((ticket.status === "1" || ticket.status === 1) && ticket.handler_id == userInfo.id) { // 处理中且当前用户是处理人
+                $actions.append(`
+                    <button class="btn-operate btn-resolve" onclick="showCloseTicketModal(${ticket.id})">
+                        <i class="fa fa-check-circle"></i> 关闭工单
+                    </button>
+                `);
+            }
+        }
+
+        // 显示关闭工单弹窗
+        function showCloseTicketModal(ticketId) {
+            const remark = prompt('请输入处理结果（可选）：');
+            if (remark === null) return; // 用户点击取消
+            
+            closeTicket(ticketId, remark);
+        }
+
+        // 关闭工单
+        function closeTicket(ticketId, remark) {
+            const userInfo = JSON.parse(localStorage.getItem("userInfo"));
+            if (!userInfo) {
+                showToast('请先登录');
+                return;
+            }
+
+            $.ajax({
+                url: "close_ticket.php",
+                method: "POST",
+                contentType: "application/json",
+                data: JSON.stringify({
+                    ticket_id: ticketId,
+                    remark: remark
+                }),
+                beforeSend: function(xhr) {
+                    xhr.setRequestHeader('Authorization', 'Bearer ' + userInfo.id);
+                },
+                success: function(res) {
+                    if (res.success) {
+                        showToast("工单关闭成功");
+                        setTimeout(() => window.location.href = "index.html", 1500);
+                    } else {
+                        showToast(res.message || '关闭工单失败');
+                    }
+                },
+                error: function() {
+                    showToast("关闭工单失败，请重试");
+                }
+            });
+        }
+
+        // 处理工单状态更新
+        function handleTicket(ticketId, status) {
+            const userInfo = JSON.parse(localStorage.getItem("userInfo"));
+            if (!userInfo) {
+                showToast('请先登录');
+                return;
+            }
+
+            $.ajax({
+                url: "handle.php",
+                method: "POST",
+                contentType: "application/json",
+                data: JSON.stringify({
+                    ticket_id: ticketId,
+                    handler_id: userInfo.id,
+                    status: status
+                }),
+                success: function(res) {
+                    if (res.success) {
+                        showToast(status === 1 ? "分配成功" : "标记为已完结成功");
+                        setTimeout(() => location.reload(), 1500);
+                    } else {
+                        showToast(res.message || '操作失败');
+                    }
+                },
+                error: function() {
+                    showToast("操作失败，请重试");
+                }
+            });
+        }
+
+        // 加载回复记录
+        function loadReplies() {
+            $.ajax({
+                url: "get_replies.php",
+                method: "GET",
+                data: { ticket_id: ticketId },
+                success: function(res) {
+                    if (res.success && res.data.length > 0) {
+                        let html = '';
+                        res.data.forEach(reply => {
+                            html += `
+                                <div class="reply-item">
+                                    <div class="reply-header">
+                                        <span class="reply-author">${reply.user_name || '匿名'}</span>
+                                        <span class="reply-time">${formatTime(reply.create_time) || '未知时间'}</span>
+                                    </div>
+                                    <div class="reply-content">${reply.content ? reply.content.replace(/\n/g, '<br>') : '无内容'}</div>
+                                    ${reply.attachments && reply.attachments.length > 0 ? `
+                                        <div class="reply-attachments">
+                                            ${reply.attachments.map(attach => {
+                                                const isImage = attach.file_type && attach.file_type.startsWith('image/') || 
+                                                               attach.file_name.match(/\.(jpg|jpeg|png|gif|webp)$/i);
+                                                return `
+                                                    <div class="attachment-item">
+                                                        ${isImage ? `
+                                                            <img src="get_attachment.php?id=${attach.id}" alt="${attach.file_name}" class="attachment-image" onclick="previewImage('get_attachment.php?id=${attach.id}')">
+                                                        ` : `
+                                                            <a href="get_attachment.php?id=${attach.id}" target="_blank" class="attachment-file">
+                                                                <i class="fa fa-file"></i>
+                                                                <span>${attach.file_name}</span>
+                                                                <span class="file-size">${(attach.file_size || 0)}KB</span>
+                                                            </a>
+                                                        `}
+                                                    </div>
+                                                `;
+                                            }).join('')}
+                                        </div>
+                                    ` : ''}
+                                </div>
+                            `;
+                        });
+                        $('#replyList').html(html);
+                    } else {
+                        $('#replyList').html('<div class="reply-item" style="text-align:center; padding:20px;">暂无回复记录</div>');
+                    }
+                },
+                error: function() {
+                    showToast('加载回复记录失败');
+                    $('#replyList').html('<div class="reply-item" style="text-align:center; padding:20px;">加载回复失败</div>');
+                }
+            });
+        }
+
+        // 处理文件选择
+        function handleFileSelection(event) {
+            const files = event.target.files;
+            if (files.length > 0) {
+                uploadedFiles.push(...files);
+                updateFileList();
+                event.target.value = ''; // 允许重复选择相同文件
+            }
+        }
+
+        // 更新文件列表显示
+        function updateFileList() {
+            const $fileList = $('#uploadFilesList');
+            $fileList.html('');
+            
+            uploadedFiles.forEach((file, index) => {
+                const fileIcon = getFileIcon(file.name);
+                $fileList.append(`
+                    <div class="upload-file-item">
+                        <i class="fa ${fileIcon}"></i>
+                        <span>${file.name}</span>
+                        <i class="fa fa-times remove-file" onclick="removeFile(${index})"></i>
+                    </div>
+                `);
+            });
+            
+            $('#fileCount').text(`${uploadedFiles.length}个文件`);
+        }
+
+        // 移除文件
+        function removeFile(index) {
+            uploadedFiles.splice(index, 1);
+            updateFileList();
+        }
+
+        // 提交回复
+        function submitReply() {
+            const content = $('#replyContent').val().trim();
+            if (!content && uploadedFiles.length === 0) {
+                showToast('回复内容和附件不能同时为空');
+                return;
+            }
+
+            const userInfo = JSON.parse(localStorage.getItem("userInfo"));
+            if (!userInfo) {
+                showToast('请先登录');
+                return;
+            }
+
+            const $submitBtn = $('.btn-submit');
+            const originalText = $submitBtn.html();
+            $submitBtn.html('<div class="loading" style="width:16px;height:16px;"></div> 提交中...').prop('disabled', true);
+
+            const formData = new FormData();
+            formData.append('ticket_id', ticketId);
+            formData.append('user_id', userInfo.id);
+            formData.append('content', content);
+            
+            // 添加附件
+            uploadedFiles.forEach(file => {
+                formData.append('attachments[]', file);
+            });
+
+            $.ajax({
+                url: "add_reply.php",
+                method: "POST",
+                data: formData,
+                contentType: false,
+                processData: false,
+                success: function(res) {
+                    if (res.success) {
+                        showToast('回复成功');
+                        $('#replyContent').val('');
+                        uploadedFiles.length = 0;
+                        updateFileList();
+                        loadReplies(); // 刷新回复列表
+                    } else {
+                        showToast(res.message || '回复失败');
+                    }
+                },
+                error: function() {
+                    showToast('回复失败，请重试');
+                },
+                complete: function() {
+                    $submitBtn.html(originalText).prop('disabled', false);
+                }
+            });
+        }
+
+        // 图片预览功能
+        function previewImage(imagePath) {
+            const previewModal = document.getElementById('imagePreview');
+            const previewImg = document.getElementById('previewImage');
+            previewImg.src = imagePath;
+            previewModal.style.display = 'flex';
+        }
+        
+        function closePreview() {
+            const previewModal = document.getElementById('imagePreview');
+            previewModal.style.display = 'none';
+        }
+        
+        // 点击预览框外部关闭
+        document.getElementById('imagePreview').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closePreview();
+            }
+        });
+
+        // 时间格式化
+        function formatTime(timeStr) {
+            if (!timeStr) return '';
+            const date = new Date(timeStr);
+            return date.toLocaleString('zh-CN', {
+                year: 'numeric', month: '2-digit', day: '2-digit',
+                hour: '2-digit', minute: '2-digit'
+            });
+        }
+    </script>
+</body>
+</html>

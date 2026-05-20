@@ -1,0 +1,923 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>运维工单系统 - 工单列表</title>
+    <script src="js/jquery-3.6.4.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: "Microsoft YaHei", sans-serif;
+        }
+        body {
+            background-color: #f5f7fa;
+            color: #1f2d3d;
+        }
+        .header {
+            height: 60px;
+            background: #fff;
+            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 24px;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 100;
+        }
+        .logo {
+            font-size: 20px;
+            font-weight: 500;
+            color: #409eff;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .logo-icon {
+            width: 32px;
+            height: 32px;
+            background: linear-gradient(135deg, #409eff 0%, #66b1ff 100%);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 18px;
+        }
+        .user-info {
+            display: flex;
+            align-items: center;
+        }
+        .user-name {
+            margin-right: 16px;
+            font-size: 14px;
+        }
+        .btn-logout {
+            background: transparent;
+            border: none;
+            color: #f56c6c;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .sidebar {
+            width: 200px;
+            background: #fff;
+            box-shadow: 1px 0 4px rgba(0, 0, 0, 0.05);
+            position: fixed;
+            top: 60px;
+            bottom: 0;
+            left: 0;
+            z-index: 90;
+            padding-top: 20px;
+        }
+        .menu-item {
+            height: 44px;
+            line-height: 44px;
+            padding: 0 24px;
+            font-size: 14px;
+            color: #4e5969;
+            cursor: pointer;
+            transition: background-color 0.3s, color 0.3s;
+        }
+        .menu-item.active, .menu-item:hover {
+            background-color: #f0f7ff;
+            color: #409eff;
+        }
+        .main-content {
+            margin-left: 200px;
+            margin-top: 60px;
+            padding: 24px;
+            min-height: calc(100vh - 60px);
+        }
+        .page-title {
+            font-size: 18px;
+            font-weight: 500;
+            margin-bottom: 24px;
+        }
+        .stats-card-group {
+            display: flex;
+            gap: 24px;
+            margin-bottom: 24px;
+        }
+        .stats-card {
+            flex: 1;
+            background: #fff;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        }
+        .stats-title {
+            font-size: 14px;
+            color: #4e5969;
+            margin-bottom: 8px;
+        }
+        .stats-value {
+            font-size: 24px;
+            font-weight: 500;
+            color: #1f2d3d;
+        }
+        .stats-value.pending { color: #ff9800; }
+        .stats-value.processing { color: #409eff; }
+        .stats-value.resolved { color: #67c23a; }
+        .stats-value.transferred { color: #9c27b0; }
+        .filter-bar {
+            background: #fff;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 24px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+            display: flex;
+            flex-wrap: wrap;
+            gap: 16px;
+            align-items: center;
+        }
+        .filter-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .filter-item label {
+            font-size: 14px;
+            color: #4e5969;
+        }
+        .filter-item select, .filter-item input {
+            padding: 8px 12px;
+            border: 1px solid #dcdfe6;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        .btn-filter {
+            padding: 8px 16px;
+            background-color: #409eff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-left: auto;
+        }
+        .form-actions {
+            margin: 20px 0;
+            text-align: right;
+        }
+        .btn-submit {
+            padding: 8px 16px;
+            background-color: #409eff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .btn-submit:hover {
+            background-color: #66b1ff;
+        }
+        .ticket-table {
+            width: 100%;
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+            border-collapse: collapse;
+        }
+        .ticket-table th, .ticket-table td {
+            padding: 16px;
+            text-align: left;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        .ticket-table th {
+            font-size: 14px;
+            color: #4e5969;
+            font-weight: 500;
+        }
+        .ticket-table td {
+            font-size: 14px;
+            color: #1f2d3d;
+        }
+        .status-tag {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+        .status-pending { background: #fff3cd; color: #856404; }
+        .status-processing { background: #e3f2fd; color: #0277bd; }
+        .status-resolved { background: #e8f5e9; color: #2e7d32; }
+        .status-transferred { background: #f3e5f5; color: #6a1b9a; }
+        .btn-operate {
+            padding: 4px 8px;
+            border: none;
+            border-radius: 4px;
+            font-size: 12px;
+            cursor: pointer;
+            margin-right: 8px;
+        }
+        .btn-view { background: #e3f2fd; color: #0277bd; }
+        .btn-handle { background: #e8f5e9; color: #2e7d32; }
+        .btn-assign { background: #fff3e0; color: #e65100; }
+        .no-data {
+            height: 200px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 14px;
+            color: #909399;
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        }
+        .pagination {
+            margin-top: 20px;
+            text-align: right;
+        }
+        .pagination button {
+            padding: 6px 12px;
+            margin: 0 4px;
+            border: 1px solid #dcdfe6;
+            background: #fff;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .pagination button.active {
+            background: #409eff;
+            color: white;
+            border-color: #409eff;
+        }
+        
+        /* 分派模态框样式 */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .modal {
+            background: #fff;
+            border-radius: 8px;
+            width: 500px;
+            max-width: 90%;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+        }
+        .modal-header {
+            padding: 16px 24px;
+            border-bottom: 1px solid #f0f0f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .modal-title {
+            font-size: 16px;
+            font-weight: 500;
+        }
+        .modal-close {
+            background: transparent;
+            border: none;
+            font-size: 20px;
+            cursor: pointer;
+            color: #909399;
+        }
+        .modal-body {
+            padding: 24px;
+        }
+        .form-group {
+            margin-bottom: 16px;
+        }
+        .form-label {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 14px;
+            color: #4e5969;
+        }
+        .form-control {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #dcdfe6;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        .modal-footer {
+            padding: 16px 24px;
+            border-top: 1px solid #f0f0f0;
+            text-align: right;
+        }
+        .btn-cancel {
+            padding: 8px 16px;
+            background-color: #fff;
+            color: #4e5969;
+            border: 1px solid #dcdfe6;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-right: 8px;
+        }
+        .btn-confirm {
+            padding: 8px 16px;
+            background-color: #409eff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <!-- 顶部导航栏 -->
+    <div class="header">
+        <div class="logo">
+            <div class="logo-icon">⚡</div>
+            运维工单系统
+        </div>
+        <div class="user-info">
+            <span class="user-name" id="userName">--</span>
+            <button class="btn-logout" id="btnLogout">退出登录</button>
+        </div>
+    </div>
+
+    <!-- 侧边栏 -->
+    <div class="sidebar">
+        <a href="index.html" class="menu-item active" id="menuTicket">工单管理</a>
+        <a href="ops_system/ops_system_manage.html" class="menu-item" id="menuOpsSystem">运维系统管理</a>
+        <a href="user/user_manage.html" class="menu-item" id="menuUser">用户管理</a>
+        <a href="org/org_manage.html" class="menu-item" id="menuOrg">组织管理</a>
+        <a href="role/role_manage.html" class="menu-item" id="menuRole">角色管理</a>
+    </div>
+    <style>
+    .sidebar .menu-item {
+        display: block; /* 将链接转为块级元素，默认独占一行 */
+        /* 可选：添加一些间距让布局更美观 */
+        margin-bottom: 8px;
+        text-decoration: none; /* 去除默认下划线 */
+    }
+    </style>
+    <!-- 主内容区 -->
+    <div class="main-content">
+        <h3 class="page-title">工单列表</h3>
+
+        <div class="form-actions">
+            <button class="btn-submit" onclick="window.location.href='create.html'">新建工单</button>
+        </div>
+
+        <!-- 筛选栏 -->
+        <div class="filter-bar">
+            <div class="filter-item">
+                <label for="filterStatus">状态</label>
+                <select id="filterStatus">
+                    <option value="">全部状态</option>
+                    <option value="0">待分派</option>
+                    <option value="1">处理中</option>
+                    <option value="2">已完结</option>
+                    <option value="3">已转派</option>
+                </select>
+            </div>
+            <div class="filter-item">
+                <label for="filterType">问题类型</label>
+                <select id="filterType">
+                    <option value="">全部类型</option>
+                    <option value="1">系统故障</option>
+                    <option value="2">网络问题</option>
+                    <option value="3">软件安装</option>
+                    <option value="4">硬件维护</option>
+                    <option value="5">账号权限</option>
+                    <option value="6">其他请求</option>
+                </select>
+            </div>
+            <div class="filter-item">
+                <label for="filterKeyword">关键词</label>
+                <input type="text" id="filterKeyword" placeholder="标题/工单编号">
+            </div>
+            <button class="btn-filter" id="btnFilter">筛选</button>
+        </div>
+
+        <div class="stats-card-group">
+            <div class="stats-card">
+                <div class="stats-title">待分派工单</div>
+                <div class="stats-value pending" id="pendingCount">0</div>
+            </div>
+            <div class="stats-card">
+                <div class="stats-title">处理中工单</div>
+                <div class="stats-value processing" id="processingCount">0</div>
+            </div>
+            <div class="stats-card">
+                <div class="stats-title">已完结工单</div>
+                <div class="stats-value resolved" id="resolvedCount">0</div>
+            </div>
+            <div class="stats-card">
+                <div class="stats-title">已转派工单</div>
+                <div class="stats-value transferred" id="transferredCount">0</div>
+            </div>
+        </div>
+
+        <table class="ticket-table" id="ticketTable">
+            <thead>
+                <tr>
+                    <th>工单编号</th>
+                    <th>工单标题</th>
+                    <th>问题类型</th>
+                    <th>所属运维系统</th>
+                    <th>项目经理姓名</th>
+                    <th>运维工程师姓名</th>
+                    <th>工单状态</th>
+                    <th>提交时间</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody id="ticketTableBody">
+                <tr><td colspan="9" class="no-data">加载中...</td></tr>
+            </tbody>
+        </table>
+
+        <!-- 分页 -->
+        <div class="pagination" id="pagination">
+            <button id="prevPage">上一页</button>
+            <button class="page-btn active" data-page="1">1</button>
+            <button id="nextPage">下一页</button>
+        </div>
+    </div>
+
+    <!-- 分派模态框 -->
+    <div class="modal-overlay" id="assignModal">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-title">分派工单</div>
+                <button class="modal-close" id="closeModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="assignTicketId">
+                <div class="form-group">
+                    <label class="form-label">专属运维工程师</label>
+                    <div id="dedicatedEngineer" style="padding: 8px 12px; background: #f5f7fa; border-radius: 4px; color: #4e5969;">加载中...</div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">选择工程师</label>
+                    <select class="form-control" id="engineerSelect">
+                        <option value="">-- 请选择工程师 --</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">分派备注</label>
+                    <textarea class="form-control" id="assignRemark" rows="3" placeholder="请输入分派备注（可选）"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-cancel" id="cancelAssign">取消</button>
+                <button class="btn-confirm" id="confirmAssign">确认分派</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        $(function() {
+            // 全局变量
+            let currentPage = 1;
+            const pageSize = 10;
+            let totalPages = 1;
+
+            // 1. 问题类型映射表（与接口返回的problem_type对应）
+            const problemTypeMap = {
+                '1': '系统故障',
+                '2': '网络问题',
+                '3': '软件安装',
+                '4': '硬件维护',
+                '5': '账号权限',
+                '6': '其他请求',
+                '1.系统故障': '系统故障',
+                '2.网络问题': '网络问题',
+                '3.软件安装': '软件安装',
+                '4.硬件维护': '硬件维护',
+                '5.账号权限': '账号权限',
+                '6.其他请求': '其他请求'
+            };
+
+            // 2. 工单状态映射表（与接口返回的status对应）
+            const statusMap = {
+                0: '待分派',
+                1: '处理中',
+                2: '已完结',
+                3: '已转派'
+            };
+
+            // 3. 状态样式映射
+            const statusClassMap = {
+                0: 'status-pending',
+                1: 'status-processing',
+                2: 'status-resolved',
+                3: 'status-transferred'
+            };
+
+            // 4. 验证登录状态
+            const userInfo = JSON.parse(localStorage.getItem("userInfo"));
+            if (!userInfo) {
+                window.location.href = "login.html";
+                return;
+            }
+            $("#userName").text(userInfo.name || userInfo.username);
+
+            // 5. 根据角色控制菜单显示
+            function controlMenuDisplay() {
+                const roleName = userInfo.role_name;
+                
+                // 系统管理员：可以看到所有菜单
+                if (roleName === '系统管理员') {
+                    // 显示所有菜单
+                }
+                // 工单填报人员：只能看到工单管理
+                else if (roleName === '工单填报人员') {
+                    $("#menuOpsSystem, #menuUser, #menuOrg, #menuRole").hide();
+                }
+                // 运维工程师：只能看到工单管理
+                else if (roleName === '运维工程师') {
+                    $("#menuOpsSystem, #menuUser, #menuOrg, #menuRole").hide();
+                }
+                // 其他角色：默认隐藏管理菜单
+                else {
+                    $("#menuOpsSystem, #menuUser, #menuOrg, #menuRole").hide();
+                }
+            }
+            
+            // 调用菜单控制函数
+            controlMenuDisplay();
+
+            // 6. 设置AJAX请求拦截器，确保所有请求都包含用户认证信息
+            $.ajaxSetup({
+                beforeSend: function(xhr) {
+                    const userInfo = JSON.parse(localStorage.getItem("userInfo"));
+                    if (userInfo && userInfo.id) {
+                        // 在请求头中添加用户ID作为认证信息
+                        xhr.setRequestHeader('Authorization', 'Bearer ' + userInfo.id);
+                    }
+                }
+            });
+
+            // 7. 退出登录
+            $("#btnLogout").click(function() {
+                localStorage.removeItem("userInfo");
+                window.location.href = "login.html";
+            });
+
+            // 8. 获取工单列表（核心函数）
+            function getTicketList(page = 1, filters = {}) {
+                // 构建请求参数
+                const requestData = {
+                    page: page,
+                    limit: pageSize,
+                    ...filters
+                };
+
+                // 调试：打印用户信息和角色
+                console.log('当前用户信息:', userInfo);
+                console.log('用户角色:', userInfo.role_name);
+                console.log('用户ID:', userInfo.id);
+
+                // 如果是普通用户，只显示自己的工单
+                if (userInfo.role_name === '工单填报人员') {
+                    requestData.creator_id = userInfo.id;
+                    console.log('工单填报人员：添加creator_id过滤', userInfo.id);
+                }
+                // 如果是运维工程师，只显示分配给自己的工单
+                else if (userInfo.role_name === '运维工程师') {
+                    requestData.handler_id = userInfo.id;
+                    console.log('运维工程师：添加handler_id过滤', userInfo.id);
+                }
+                // 系统管理员：可以看到所有工单
+                else if (userInfo.role_name === '系统管理员') {
+                    console.log('系统管理员：查看所有工单');
+                }
+                // 其他角色：默认不添加过滤条件
+                else {
+                    console.log('其他角色：不添加过滤条件');
+                }
+
+                console.log('最终请求数据:', requestData);
+
+                $.ajax({
+                    url: "list.php",
+                    method: "POST",
+                    contentType: "application/json",
+                    data: JSON.stringify(requestData),
+                    success: function(res) {
+                        if (res.success) {
+                            currentPage = page;
+                            totalPages = res.data.pagination.pages;
+                            renderTicketTable(res.data.list);
+                            calculateTicketStats(res.data.list);
+                            renderPagination();
+                        } else {
+                            $("#ticketTableBody").html(`<tr><td colspan="9" class="no-data">${res.message}</td></tr>`);
+                        }
+                    },
+                    error: function() {
+                        $("#ticketTableBody").html(`<tr><td colspan="9" class="no-data">工单数据加载失败，请刷新重试</td></tr>`);
+                    }
+                });
+            }
+
+            // 7. 获取工程师列表（用于分派功能）
+            function getEngineers() {
+                $.ajax({
+                    url: "engineers.php",
+                    method: "GET",
+                    success: function(res) {
+                        if (res.success && res.data.length > 0) {
+                            let options = '<option value="">-- 请选择工程师 --</option>';
+                            res.data.forEach(engineer => {
+                                options += `<option value="${engineer.id}">${engineer.realname || engineer.username}</option>`;
+                            });
+                            $("#engineerSelect").html(options);
+                        } else {
+                            $("#engineerSelect").html('<option value="">暂无工程师数据</option>');
+                        }
+                    },
+                    error: function() {
+                        $("#engineerSelect").html('<option value="">工程师列表加载失败</option>');
+                    }
+                });
+            }
+
+            // 8. 渲染工单表格（修复核心）
+            function renderTicketTable(ticketList) {
+                if (ticketList.length === 0) {
+                    $("#ticketTableBody").html(`<tr><td colspan="9" class="no-data">暂无工单数据</td></tr>`);
+                    return;
+                }
+
+                let html = "";
+                ticketList.forEach(ticket => {
+                    // 问题类型转换
+                    const problemType = problemTypeMap[ticket.problem_type] || `未知类型(${ticket.problem_type})`;
+                    
+                    // 所属运维系统：直接使用接口返回的system_type（如"OA系统"）
+                    const systemType = ticket.system_type || "未知系统";
+                    
+                    // 项目经理姓名默认值
+                    const managerName = ticket.manager_name || "-";
+                    
+                    // 运维工程师姓名默认值
+                    const engineerName = ticket.engineer_name || "-";
+                    
+                    // 工单状态转换（修复状态显示）
+                    const statusKey = typeof ticket.status === 'string' ? parseInt(ticket.status) : ticket.status;
+                    const statusText = statusMap[statusKey] || `未知状态(${ticket.status})`;
+                    const statusClass = statusClassMap[statusKey] || "";
+
+                    // 操作按钮：仅待分派状态显示分派按钮
+                    const assignBtn = (ticket.status === 0 || ticket.status === '0') ? 
+                        `<button class="btn-operate btn-assign" data-id="${ticket.id}">分派</button>` : 
+                        "";
+                    
+                    // 关闭按钮：仅处理中状态且当前用户是处理人时显示
+                    const userInfo = JSON.parse(localStorage.getItem("userInfo") || '{}');
+                    const canClose = (ticket.status === 1 || ticket.status === '1') && 
+                                     ticket.handler_id == userInfo.id;
+                    const closeBtn = canClose ? 
+                        `<button class="btn-operate btn-close" data-id="${ticket.id}" style="background-color: #67c23a;">关闭</button>` : 
+                        "";
+
+                    // 构建表格行
+                    html += `
+                        <tr>
+                            <td>${ticket.ticket_id}</td>
+                            <td>${ticket.title}</td>
+                            <td>${problemType}</td>
+                            <td>${systemType}</td>
+                            <td>${managerName}</td>
+                            <td>${engineerName}</td>
+                            <td><span class="status-tag ${statusClass}">${statusText}</span></td>
+                            <td>${ticket.created_at}</td>
+                            <td>
+                                <button class="btn-operate btn-view" data-id="${ticket.id}">查看</button>
+                                <button class="btn-operate btn-handle" data-id="${ticket.id}">处理</button>
+                                ${assignBtn}
+                                ${closeBtn}
+                            </td>
+                        </tr>
+                    `;
+                });
+
+                $("#ticketTableBody").html(html);
+                bindButtonEvents();
+            }
+
+            // 9. 绑定按钮事件
+            function bindButtonEvents() {
+                // 查看按钮
+                $(".btn-view").click(function() {
+                    const ticketId = $(this).data("id");
+                    window.location.href = `view.html?id=${ticketId}`;
+                });
+
+                // 处理按钮
+                $(".btn-handle").click(function() {
+                    const ticketId = $(this).data("id");
+                    window.location.href = `view.html?id=${ticketId}`;
+                });
+
+                // 分派按钮（修复显示逻辑）
+                $(".btn-assign").click(function() {
+                    const ticketId = $(this).data("id");
+                    $("#assignTicketId").val(ticketId); // 记录当前工单ID
+                    
+                    // 加载该工单的专属工程师信息
+                    $.ajax({
+                        url: "get_ticket.php",
+                        method: "GET",
+                        data: { id: ticketId },
+                        success: function(res) {
+                            if (res.success && res.data) {
+                                const engineerName = res.data.engineer_name || "未分配";
+                                $("#dedicatedEngineer").text(engineerName);
+                            } else {
+                                $("#dedicatedEngineer").text("加载失败");
+                            }
+                        },
+                        error: function() {
+                            $("#dedicatedEngineer").text("加载失败");
+                        }
+                    });
+                    
+                    $("#assignModal").css("display", "flex"); // 显示分派模态框，使用flex布局实现居中
+                });
+                
+                // 关闭按钮
+                $(".btn-close").click(function() {
+                    const ticketId = $(this).data("id");
+                    const remark = prompt('请输入处理结果（可选）：');
+                    if (remark === null) return; // 用户点击取消
+                    
+                    closeTicket(ticketId, remark);
+                });
+            }
+            
+            // 关闭工单
+            function closeTicket(ticketId, remark) {
+                const userInfo = JSON.parse(localStorage.getItem("userInfo"));
+                if (!userInfo) {
+                    alert('请先登录');
+                    return;
+                }
+
+                $.ajax({
+                    url: "close_ticket.php",
+                    method: "POST",
+                    contentType: "application/json",
+                    data: JSON.stringify({
+                        ticket_id: ticketId,
+                        remark: remark
+                    }),
+                    success: function(res) {
+                        if (res.success) {
+                            alert("工单关闭成功");
+                            getTicketList(currentPage, getFilterData()); // 刷新列表
+                        } else {
+                            alert(res.message || '关闭工单失败');
+                        }
+                    },
+                    error: function() {
+                        alert("关闭工单失败，请重试");
+                    }
+                });
+            }
+
+            // 10. 计算统计数据
+            function calculateTicketStats(ticketList) {
+                let pending = 0, processing = 0, resolved = 0, transferred = 0;
+                ticketList.forEach(ticket => {
+                    const status = typeof ticket.status === 'string' ? parseInt(ticket.status) : ticket.status;
+                    switch(status) {
+                        case 0: pending++; break;
+                        case 1: processing++; break;
+                        case 2: resolved++; break;
+                        case 3: transferred++; break;
+                    }
+                });
+                $("#pendingCount").text(pending);
+                $("#processingCount").text(processing);
+                $("#resolvedCount").text(resolved);
+                $("#transferredCount").text(transferred);
+            }
+
+            // 11. 渲染分页
+            function renderPagination() {
+                let html = `<button id="prevPage" ${currentPage === 1 ? 'disabled' : ''}>上一页</button>`;
+                
+                // 简化分页逻辑，只显示当前页、首页和末页
+                if (totalPages > 1) {
+                    html += `<button class="page-btn ${currentPage === 1 ? 'active' : ''}" data-page="1">1</button>`;
+                }
+                
+                if (currentPage > 2) {
+                    html += `<span>...</span>`;
+                }
+                
+                if (currentPage > 1 && currentPage < totalPages) {
+                    html += `<button class="page-btn active" data-page="${currentPage}">${currentPage}</button>`;
+                }
+                
+                if (currentPage < totalPages - 1) {
+                    html += `<span>...</span>`;
+                }
+                
+                if (totalPages > 1 && currentPage !== totalPages) {
+                    html += `<button class="page-btn ${currentPage === totalPages ? 'active' : ''}" data-page="${totalPages}">${totalPages}</button>`;
+                }
+                
+                html += `<button id="nextPage" ${currentPage === totalPages ? 'disabled' : ''}>下一页</button>`;
+                $("#pagination").html(html);
+
+                // 绑定分页事件
+                $(".page-btn").click(function() {
+                    const page = parseInt($(this).data("page"));
+                    getTicketList(page, getFilterData());
+                });
+
+                $("#prevPage").click(function() {
+                    if (currentPage > 1) {
+                        getTicketList(currentPage - 1, getFilterData());
+                    }
+                });
+
+                $("#nextPage").click(function() {
+                    if (currentPage < totalPages) {
+                        getTicketList(currentPage + 1, getFilterData());
+                    }
+                });
+            }
+
+            // 12. 获取筛选条件
+            function getFilterData() {
+                return {
+                    status: $("#filterStatus").val() || '',
+                    problem_type: $("#filterType").val() || '',
+                    keyword: $("#filterKeyword").val().trim() || ''
+                };
+            }
+
+            // 13. 筛选按钮事件
+            $("#btnFilter").click(function() {
+                getTicketList(1, getFilterData()); // 重置到第1页
+            });
+
+            // 14. 分派模态框事件
+            function initAssignEvents() {
+                // 关闭模态框
+                $("#closeModal, #cancelAssign").click(function() {
+                    $("#assignModal").css("display", "none");
+                    $("#assignRemark").val("");
+                    $("#engineerSelect").val("");
+                });
+
+                // 确认分派
+                $("#confirmAssign").click(function() {
+                    const ticketId = $("#assignTicketId").val();
+                    const engineerId = $("#engineerSelect").val();
+                    const remark = $("#assignRemark").val().trim();
+
+                    if (!engineerId) {
+                        alert("请选择工程师");
+                        return;
+                    }
+
+                    // 调用分派接口
+                    $.ajax({
+                        url: "dispatch.php",
+                        method: "POST",
+                        contentType: "application/json",
+                        data: JSON.stringify({
+                            ticket_id: ticketId,
+                            handler_id: engineerId,
+                            remark: remark
+                        }),
+                        success: function(res) {
+                            if (res.success) {
+                                alert("分派成功");
+                                $("#assignModal").css("display", "none");
+                                getTicketList(currentPage, getFilterData()); // 刷新当前页
+                            } else {
+                                alert("分派失败：" + res.message);
+                            }
+                        },
+                        error: function() {
+                            alert("网络错误，分派请求失败");
+                        }
+                    });
+                });
+            }
+
+            // 初始化
+            getEngineers(); // 加载工程师列表（用于分派）
+            getTicketList(); // 加载工单列表
+            initAssignEvents(); // 初始化分派事件
+        });
+    </script>
+</body>
+</html>

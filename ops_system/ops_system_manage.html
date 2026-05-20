@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>运维工单系统 - 运维系统管理</title>
+    <script src="../js/jquery-3.6.4.min.js"></script>
+    <link rel="stylesheet" href="../css/common.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: "Microsoft YaHei", sans-serif;
+        }
+        body {
+            background-color: #f5f7fa;
+            color: #1f2d3d;
+        }
+        .header {
+            height: 60px;
+            background: #fff;
+            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 24px;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 100;
+        }
+        .logo {
+            font-size: 20px;
+            font-weight: 500;
+            color: #409eff;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .logo-icon {
+            width: 32px;
+            height: 32px;
+            background: linear-gradient(135deg, #409eff 0%, #66b1ff 100%);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 18px;
+        }
+        .user-info {
+            display: flex;
+            align-items: center;
+        }
+        .user-name {
+            margin-right: 16px;
+            font-size: 14px;
+        }
+        .btn-logout {
+            background: transparent;
+            border: none;
+            color: #f56c6c;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .sidebar {
+            width: 200px;
+            background: #fff;
+            box-shadow: 1px 0 4px rgba(0, 0, 0, 0.05);
+            position: fixed;
+            top: 60px;
+            bottom: 0;
+            left: 0;
+            z-index: 90;
+            padding-top: 20px;
+        }
+        .menu-item {
+            height: 44px;
+            line-height: 44px;
+            padding: 0 24px;
+            font-size: 14px;
+            color: #4e5969;
+            cursor: pointer;
+            transition: background-color 0.3s, color 0.3s;
+            text-decoration: none;
+            display: block;
+        }
+        .menu-item.active, .menu-item:hover {
+            background-color: #f0f7ff;
+            color: #409eff;
+        }
+        .main-content {
+            margin-left: 200px;
+            margin-top: 60px;
+            padding: 24px;
+            min-height: calc(100vh - 60px);
+        }
+        .page-title {
+            font-size: 18px;
+            font-weight: 500;
+            margin-bottom: 24px;
+        }
+        .form-actions {
+            margin-bottom: 24px;
+        }
+        .btn-submit {
+            padding: 8px 16px;
+            background-color: #409eff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .data-table {
+            width: 100%;
+            background: #fff;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        }
+        .data-table th, .data-table td {
+            padding: 12px 16px;
+            text-align: left;
+            border-bottom: 1px solid #ebeef5;
+        }
+        .data-table th {
+            background-color: #f5f7fa;
+            font-weight: 500;
+            font-size: 14px;
+        }
+        .data-table td {
+            font-size: 14px;
+            color: #606266;
+        }
+        .btn-edit, .btn-delete, .btn-status, .btn-report {
+            padding: 4px 8px;
+            margin-right: 8px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        .btn-edit {
+            background-color: #409eff;
+            color: white;
+        }
+        .btn-delete {
+            background-color: #f56c6c;
+            color: white;
+        }
+        .btn-status.active {
+            background-color: #67c23a;
+            color: white;
+        }
+        .btn-status.inactive {
+            background-color: #909399;
+            color: white;
+        }
+        .status-text {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+        .status-text.active {
+            background-color: #f0f9eb;
+            color: #67c23a;
+        }
+        .status-text.inactive {
+            background-color: #f4f4f5;
+            color: #909399;
+        }
+        .btn-report {
+            background-color: #e6a23c;
+            color: white;
+        }
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 200;
+        }
+        .modal-content {
+            background: #fff;
+            border-radius: 8px;
+            padding: 24px;
+            width: 500px;
+            max-width: 90%;
+        }
+        .modal h3 {
+            margin-bottom: 20px;
+            font-size: 16px;
+            color: #303133;
+        }
+        .form-group {
+            margin-bottom: 16px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 14px;
+            color: #606266;
+        }
+        .form-control {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #dcdfe6;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        .form-control:focus {
+            outline: none;
+            border-color: #409eff;
+        }
+        .modal-actions {
+            text-align: right;
+            margin-top: 24px;
+        }
+        .btn-cancel {
+            padding: 8px 16px;
+            background-color: #fff;
+            color: #4e5969;
+            border: 1px solid #dcdfe6;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-right: 8px;
+        }
+        .btn-confirm {
+            padding: 8px 16px;
+            background-color: #409eff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .status-text.active {
+            color: #67c23a;
+        }
+        .status-text.inactive {
+            color: #909399;
+        }
+        .copy-notice {
+            color: #67c23a;
+            font-size: 12px;
+            margin-left: 8px;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="logo">
+            <div class="logo-icon">⚡</div>
+            运维工单系统
+        </div>
+        <div class="user-info">
+            <span class="user-name" id="userName">--</span>
+            <button class="btn-logout" id="btnLogout">退出登录</button>
+        </div>
+    </div>
+
+    <!-- 侧边栏 -->
+    <div class="sidebar">
+        <a href="../index.html" class="menu-item" id="menuTicket">工单管理</a>
+        <a href="ops_system_manage.html" class="menu-item active" id="menuOpsSystem">运维系统管理</a>
+        <a href="../user/user_manage.html" class="menu-item" id="menuUser">用户管理</a>
+        <a href="../org/org_manage.html" class="menu-item" id="menuOrg">组织管理</a>
+        <a href="../role/role_manage.html" class="menu-item" id="menuRole">角色管理</a>
+    </div>
+
+    <!-- 主内容区 -->
+    <div class="main-content">
+        <h3 class="page-title">运维系统管理</h3>
+
+        <div class="form-actions">
+            <button class="btn-submit" id="addSystemBtn">新增运维系统</button>
+        </div>
+
+        <table class="data-table" id="systemTable">
+            <thead>
+                <tr>
+                    <th>系统ID</th>
+                    <th>系统名称</th>
+                    <th>客户名称</th>
+                    <th>运维周期</th>
+                    <th>项目经理</th>
+                    <th>专属工程师</th>
+                    <th>状态</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody id="systemTableBody"></tbody>
+        </table>
+    </div>
+
+    <!-- 新增/编辑系统弹窗 -->
+    <div id="systemModal" class="modal">
+        <div class="modal-content">
+            <h3 id="modalTitle">新增运维系统</h3>
+            <input type="hidden" id="systemId">
+            <div class="form-group">
+                <label for="systemName">系统名称</label>
+                <input type="text" id="systemName" class="form-control" required autocomplete="off">
+            </div>
+            <div class="form-group">
+                <label for="customerName">客户名称</label>
+                <input type="text" id="customerName" class="form-control" autocomplete="off">
+            </div>
+            <div class="form-group">
+                <label for="maintainStart">运维开始时间</label>
+                <input type="date" id="maintainStart" class="form-control">
+            </div>
+            <div class="form-group">
+                <label for="maintainEnd">运维结束时间</label>
+                <input type="date" id="maintainEnd" class="form-control">
+            </div>
+            <div class="form-group">
+                <label for="pmName">项目经理姓名</label>
+                <input type="text" id="pmName" class="form-control" autocomplete="off">
+            </div>
+            <div class="form-group">
+                <label for="pmPhone">项目经理联系电话</label>
+                <input type="text" id="pmPhone" class="form-control" autocomplete="off">
+            </div>
+            <div class="form-group">
+                <label for="engineerId">专属运维工程师</label>
+                <select id="engineerId" class="form-control">
+                    <option value="">无</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="status">状态</label>
+                <select id="status" class="form-control">
+                    <option value="1">启用</option>
+                    <option value="0">停用</option>
+                </select>
+            </div>
+            <div class="modal-actions">
+                <button class="btn-cancel" id="cancelBtn">取消</button>
+                <button class="btn-confirm" id="saveBtn">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 上报链接弹窗 -->
+    <div id="reportLinkModal" class="modal">
+        <div class="modal-content">
+            <h3>工单上报链接</h3>
+            <div class="form-group">
+                <label for="reportLink">上报链接</label>
+                <div style="display: flex;">
+                    <input type="text" id="reportLink" class="form-control" readonly>
+                    <button class="btn-submit" id="copyLinkBtn" style="margin-left: 8px; white-space: nowrap;">复制链接</button>
+                </div>
+                <span class="copy-notice" id="copyNotice">已复制！</span>
+            </div>
+            <div class="modal-actions">
+                <button class="btn-confirm" id="closeLinkBtn">关闭</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        $(function() {
+            // 用户信息处理
+            const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}');
+            if (!userInfo.username) {
+                window.location.href = '../login.html';
+                return;
+            }
+            $('#userName').text(userInfo.name || userInfo.username);
+            
+            // 根据角色控制菜单显示
+            function controlMenuDisplay() {
+                const roleName = userInfo.role_name;
+                
+                // 系统管理员：可以看到所有菜单
+                if (roleName === '系统管理员') {
+                    // 显示所有菜单
+                }
+                // 工单填报人员：只能看到工单管理
+                else if (roleName === '工单填报人员') {
+                    $("#menuOpsSystem, #menuUser, #menuOrg, #menuRole").hide();
+                }
+                // 运维工程师：只能看到工单管理
+                else if (roleName === '运维工程师') {
+                    $("#menuOpsSystem, #menuUser, #menuOrg, #menuRole").hide();
+                }
+                // 其他角色：默认隐藏管理菜单
+                else {
+                    $("#menuOpsSystem, #menuUser, #menuOrg, #menuRole").hide();
+                }
+            }
+            
+            // 调用菜单控制函数
+            controlMenuDisplay();
+            
+            $('#btnLogout').click(function() {
+                localStorage.removeItem('userInfo');
+                window.location.href = '../login.html';
+            });
+
+            // 加载工程师列表
+            function loadEngineers() {
+                $.ajax({
+                    url: 'get_engineers.php',
+                    type: 'GET',
+                    dataType: 'json',
+                    success: function(res) {
+                        if (res.success) {
+                            const engineerSelect = $('#engineerId');
+                            engineerSelect.empty();
+                            engineerSelect.append('<option value="">无</option>');
+                            res.data.forEach(function(engineer) {
+                                const displayName = engineer.name || engineer.username;
+                                engineerSelect.append(`<option value="${engineer.id}">${displayName}</option>`);
+                            });
+                        }
+                    }
+                });
+            }
+
+            // 加载系统列表
+            function loadSystemList() {
+                $.ajax({
+                    url: 'list.php',
+                    type: 'POST',
+                    dataType: 'json',
+                    contentType: 'application/json',
+                    data: JSON.stringify({}),
+                    success: function(res) {
+                        if (res.success) {
+                            const tbody = $('#systemTableBody');
+                            tbody.empty();
+                            res.data.list.forEach(function(system) {
+                                const maintainPeriod = system.maintain_start && system.maintain_end 
+                                    ? `${system.maintain_start} - ${system.maintain_end}` 
+                                    : '未设置';
+                                const statusText = system.status === 1 ? 
+                                    '<span class="status-text active">启用</span>' : 
+                                    '<span class="status-text inactive">停用</span>';
+                                // 确保状态显示逻辑正确：status=1显示"启用"，status=0显示"停用"
+                                
+                                tbody.append(`
+                                    <tr>
+                                        <td>${system.id}</td>
+                                        <td>${system.system_name}</td>
+                                        <td>${system.customer_name || '-'}</td>
+                                        <td>${maintainPeriod}</td>
+                                        <td>${system.pm_name || '-'}</td>
+                                        <td>${system.engineer_name || '-'}</td>
+                                        <td>${statusText}</td>
+                                        <td>
+                                            <button class="btn-edit" onclick="editSystem(${system.id})")>编辑</button>
+                                            <button class="btn-delete" onclick="deleteSystem(${system.id})")>删除</button>
+                                            <button class="btn-status ${system.status === 1 ? 'active' : 'inactive'}" onclick="toggleStatus(${system.id}, ${system.status === 1 ? 0 : 1})">${system.status === 1 ? '停用' : '启用'}</button>
+                                            <!-- 确保按钮功能正确：启用状态显示停用按钮，停用状态显示启用按钮 -->
+                                            <button class="btn-report" onclick="showReportLink(${system.id})")>上报链接</button>
+                                        </td>
+                                    </tr>
+                                `);
+                            });
+                        } else {
+                            alert(res.message || '加载系统列表失败');
+                        }
+                    },
+                    error: function() {
+                        alert('加载系统列表失败');
+                    }
+                });
+            }
+
+            // 打开新增系统弹窗
+            $('#addSystemBtn').click(function() {
+                $('#modalTitle').text('新增运维系统');
+                $('#systemId').val('');
+                $('#systemName').val('');
+                $('#customerName').val('');
+                $('#maintainStart').val('');
+                $('#maintainEnd').val('');
+                $('#pmName').val('');
+                $('#pmPhone').val('');
+                $('#engineerId').val('');
+                $('#status').val('1');
+                $('#systemModal').css('display', 'flex');
+            });
+
+            // 保存系统信息
+            $('#saveBtn').click(function() {
+                const id = $('#systemId').val();
+                const systemName = $('#systemName').val().trim();
+                
+                if (!systemName) {
+                    alert('系统名称不能为空');
+                    return;
+                }
+                
+                const data = {
+                    system_name: systemName,
+                    customer_name: $('#customerName').val().trim(),
+                    maintain_start: $('#maintainStart').val(),
+                    maintain_end: $('#maintainEnd').val(),
+                    pm_name: $('#pmName').val().trim(),
+                    pm_phone: $('#pmPhone').val().trim(),
+                    engineer_id: $('#engineerId').val() || null,
+                    status: parseInt($('#status').val())
+                };
+                
+                const url = id ? 'update.php' : 'create.php';
+                
+                $.ajax({
+                    url: url,
+                    type: 'POST',
+                    dataType: 'json',
+                    contentType: 'application/json',
+                    data: JSON.stringify(id ? { ...data, id: parseInt(id) } : data),
+                    success: function(res) {
+                        if (res.success) {
+                            $('#systemModal').css('display', 'none');
+                            loadSystemList();
+                        } else {
+                            alert(res.message || '保存失败');
+                        }
+                    },
+                    error: function() {
+                        alert('保存失败');
+                    }
+                });
+            });
+
+            // 取消按钮
+            $('#cancelBtn').click(function() {
+                $('#systemModal').css('display', 'none');
+            });
+
+            // 编辑系统
+            window.editSystem = function(id) {
+                $.ajax({
+                    url: 'list.php',
+                    type: 'POST',
+                    dataType: 'json',
+                    contentType: 'application/json',
+                    data: JSON.stringify({ system_id: id }),
+                    success: function(res) {
+                        if (res.success && res.data.list.length > 0) {
+                            const system = res.data.list[0];
+                            $('#modalTitle').text('编辑运维系统');
+                            $('#systemId').val(system.id);
+                            $('#systemName').val(system.system_name);
+                            $('#customerName').val(system.customer_name || '');
+                            $('#maintainStart').val(system.maintain_start || '');
+                            $('#maintainEnd').val(system.maintain_end || '');
+                            $('#pmName').val(system.pm_name || '');
+                            $('#pmPhone').val(system.pm_phone || '');
+                            $('#engineerId').val(system.engineer_id || '');
+                            $('#status').val(system.status.toString());
+                            $('#systemModal').css('display', 'flex');
+                        }
+                    }
+                });
+            };
+
+            // 删除系统
+            window.deleteSystem = function(id) {
+                if (confirm('确定要删除该运维系统吗？')) {
+                    $.ajax({
+                        url: 'delete.php',
+                        type: 'POST',
+                        dataType: 'json',
+                        contentType: 'application/json',
+                        data: JSON.stringify({ id: id }),
+                        success: function(res) {
+                            if (res.success) {
+                                loadSystemList();
+                            } else {
+                                alert(res.message || '删除失败');
+                            }
+                        },
+                        error: function() {
+                            alert('删除失败');
+                        }
+                    });
+                }
+            };
+
+            // 切换状态
+            window.toggleStatus = function(id, status) {
+                $.ajax({
+                    url: 'update.php',
+                    type: 'POST',
+                    dataType: 'json',
+                    contentType: 'application/json',
+                    data: JSON.stringify({ id: id, status: status }),
+                    success: function(res) {
+                        if (res.success) {
+                            loadSystemList();
+                        } else {
+                            alert(res.message || '状态更新失败');
+                        }
+                    },
+                    error: function() {
+                        alert('状态更新失败');
+                    }
+                });
+            };
+
+            // 显示上报链接
+            window.showReportLink = function(id) {
+                const reportLink = `${window.location.origin}${window.location.pathname.replace('ops_system_manage.html', 'report.php?system_id=' + id)}`;
+                $('#reportLink').val(reportLink);
+                $('#reportLinkModal').css('display', 'flex');
+            };
+
+            // 复制链接
+            $('#copyLinkBtn').click(function() {
+                const linkInput = $('#reportLink');
+                linkInput.select();
+                document.execCommand('copy');
+                
+                const notice = $('#copyNotice');
+                notice.show();
+                setTimeout(function() {
+                    notice.hide();
+                }, 2000);
+            });
+
+            // 关闭链接弹窗
+            $('#closeLinkBtn').click(function() {
+                $('#reportLinkModal').css('display', 'none');
+            });
+
+            // 初始化
+            loadEngineers();
+            loadSystemList();
+        });
+    </script>
+</body>
+</html>

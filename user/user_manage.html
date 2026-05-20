@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>用户管理 - 运维工单系统</title>
+    <link rel="stylesheet" href="../css/common.css">
+</head>
+<body>
+    <div class="header">
+        <div class="logo">
+            <div class="logo-icon">⚡</div>
+            运维工单系统
+        </div>
+        <div class="user-info">
+            <span class="user-name" id="userName">--</span>
+            <button class="btn-logout" id="btnLogout">退出登录</button>
+        </div>
+    </div>
+
+    <div class="sidebar">
+        <a href="../index.html" class="menu-item" id="menuTicket">工单管理</a>
+        <a href="../ops_system/ops_system_manage.html" class="menu-item" id="menuOpsSystem">运维系统管理</a>
+        <a href="user_manage.html" class="menu-item active" id="menuUser">用户管理</a>
+        <a href="../org/org_manage.html" class="menu-item" id="menuOrg">组织管理</a>
+        <a href="../role/role_manage.html" class="menu-item" id="menuRole">角色管理</a>
+    </div>
+
+    <div class="main-content">
+        <h3 class="page-title">用户管理</h3>
+
+        <div class="form-actions">
+            <button class="btn-submit" id="addUserBtn">新增用户</button>
+        </div>
+
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>用户名</th>
+                    <th>姓名</th>
+                    <th>所属组织</th>
+                    <th>所属角色</th>
+                    <th>联系电话</th>
+                    <th>状态</th>
+                    <th>创建时间</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody id="userTableBody"></tbody>
+        </table>
+
+        <div id="userModal" class="modal">
+            <div class="modal-content">
+                <h3 id="modalTitle">新增用户</h3>
+                <input type="hidden" id="userId">
+                <div class="form-group">
+                    <label>用户名</label>
+                    <input type="text" id="username" class="form-control" required autocomplete="off">
+                </div>
+                <div class="form-group">
+                    <label>姓名</label>
+                    <input type="text" id="name" class="form-control" required autocomplete="off">
+                </div>
+                <div class="form-group">
+                    <label>密码</label>
+                    <input type="password" id="password" class="form-control" autocomplete="off">
+                </div>
+                <div class="form-group">
+                    <label>所属组织</label>
+                    <select id="orgId" class="form-control" required></select>
+                </div>
+                <div class="form-group">
+                    <label>所属角色</label>
+                    <select id="roleId" class="form-control" required></select>
+                </div>
+                <div class="form-group">
+                    <label>联系电话</label>
+                    <input type="text" id="phone" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label>浙政钉号码</label>
+                    <input type="text" id="zjdCode" class="form-control">
+                </div>
+                <div class="modal-actions">
+                    <button class="btn-cancel" id="cancelUserBtn">取消</button>
+                    <button class="btn-confirm" id="saveUserBtn">保存</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="deleteModal" class="modal">
+            <div class="modal-content">
+                <h3>确认删除</h3>
+                <p>确定要删除该用户吗？</p>
+                <input type="hidden" id="deleteUserId">
+                <div class="modal-actions">
+                    <button class="btn-cancel" id="cancelDeleteBtn">取消</button>
+                    <button class="btn-confirm" id="confirmDeleteBtn" style="background-color: #f56c6c;">确认删除</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="../js/jquery-3.6.4.min.js"></script>
+    <script>
+        $(function() {
+            $.ajaxSetup({
+                beforeSend: function(xhr) {
+                    const userInfo = localStorage.getItem('userInfo');
+                    if (userInfo) {
+                        try {
+                            const parsedUserInfo = JSON.parse(userInfo);
+                            xhr.setRequestHeader('Authorization', 'Bearer ' + parsedUserInfo.id);
+                        } catch (e) {
+                            console.error('解析用户信息失败', e);
+                        }
+                    }
+                }
+            });
+            
+            const userInfo = JSON.parse(localStorage.getItem('userInfo'));
+            if (!userInfo) {
+                window.location.href = '../login.html';
+                return;
+            }
+            
+            $('#userName').text(userInfo.name || userInfo.username);
+            
+            function controlMenuDisplay() {
+                const roleName = userInfo.role_name;
+                if (roleName === '系统管理员') {
+                } else if (roleName === '工单填报人员') {
+                    $("#menuOpsSystem, #menuUser, #menuOrg, #menuRole").hide();
+                } else if (roleName === '运维工程师') {
+                    $("#menuOpsSystem, #menuUser, #menuOrg, #menuRole").hide();
+                } else {
+                    $("#menuOpsSystem, #menuUser, #menuOrg, #menuRole").hide();
+                }
+            }
+            
+            controlMenuDisplay();
+            
+            loadUserList();
+            loadOrgSelect();
+            loadRoleSelect();
+
+            $("#addUserBtn").click(function() {
+                $("#modalTitle").text("新增用户");
+                $("#userId").val("");
+                $("#username").val("");
+                $("#name").val("");
+                $("#password").val("");
+                $("#phone").val("");
+                $("#zjdCode").val("");
+                $("#userModal").css("display", "flex");
+            });
+
+            $("#saveUserBtn").click(saveUser);
+            
+            $("#cancelUserBtn").click(function() {
+                $("#userModal").css("display", "none");
+            });
+
+            $("#cancelDeleteBtn").click(function() {
+                $("#deleteModal").css("display", "none");
+            });
+
+            $("#confirmDeleteBtn").click(deleteUser);
+            
+            $('#btnLogout').click(function() {
+                localStorage.removeItem('userInfo');
+                window.location.href = '../login.html';
+            });
+        });
+
+        function loadUserList() {
+            $.get("list.php", function(res) {
+                if (res.success) {
+                    let html = "";
+                    res.data.forEach(user => {
+                        const statusText = user.status == 1 ? "禁用" : "启用";
+                        const statusClass = user.status == 1 ? "btn-danger" : "btn-primary";
+                        const statusDisplay = user.status == 1 ? 
+                            '<span class="status-text active">启用</span>' : 
+                            '<span class="status-text inactive">禁用</span>';
+                        html += `
+                            <tr>
+                                <td>${user.id}</td>
+                                <td>${user.username}</td>
+                                <td>${user.name || '-'}</td>
+                                <td>${user.org_name || '-'}</td>
+                                <td>${user.role_name || '-'}</td>
+                                <td>${user.phone || '-'}</td>
+                                <td>${statusDisplay}</td>
+                                <td>${user.create_time}</td>
+                                <td>
+                                    <button class="btn btn-edit" onclick="editUser(${user.id})">编辑</button>
+                                    <button class="btn ${statusClass}" onclick="changeStatus(${user.id}, ${user.status})">${statusText}</button>
+                                    <button class="btn btn-danger" onclick="showDeleteModal(${user.id})">删除</button>
+                                </td>
+                            </tr>
+                        `;
+                    });
+                    $("#userTableBody").html(html);
+                } else {
+                    alert(res.message);
+                }
+            });
+        }
+
+        function loadOrgSelect() {
+            $.get("../org/list.php", function(res) {
+                if (res.success) {
+                    let html = '<option value="">请选择组织</option>';
+                    res.data.forEach(org => {
+                        html += `<option value="${org.id}">${org.org_name}</option>`;
+                    });
+                    $("#orgId").html(html);
+                }
+            });
+        }
+
+        function loadRoleSelect() {
+            $.get("../role/list.php", function(res) {
+                if (res.success) {
+                    let html = '<option value="">请选择角色</option>';
+                    res.data.forEach(role => {
+                        html += `<option value="${role.id}">${role.role_name}</option>`;
+                    });
+                    $("#roleId").html(html);
+                }
+            });
+        }
+
+        function editUser(id) {
+            $.get(`list.php?id=${id}`, function(res) {
+                if (res.success && res.data.length > 0) {
+                    const user = res.data[0];
+                    $("#modalTitle").text("编辑用户");
+                    $("#userId").val(user.id);
+                    $("#username").val(user.username);
+                    $("#name").val(user.name);
+                    $("#password").val("");
+                    $("#orgId").val(user.org_id);
+                    $("#roleId").val(user.role_id);
+                    $("#phone").val(user.phone);
+                    $("#zjdCode").val(user.zjd_code);
+                    
+                    setTimeout(function() {
+                        $("#username").val(user.username);
+                        $("#name").val(user.name);
+                        $("#password").val("");
+                    }, 100);
+                    
+                    $("#userModal").css("display", "flex");
+                }
+            });
+        }
+
+        function saveUser() {
+            const id = $("#userId").val();
+            const data = {
+                username: $("#username").val(),
+                name: $("#name").val(),
+                password: $("#password").val(),
+                org_id: $("#orgId").val(),
+                role_id: $("#roleId").val(),
+                phone: $("#phone").val(),
+                zjd_code: $("#zjdCode").val()
+            };
+
+            if (!data.username || !data.name || (!id && !data.password)) {
+                alert("用户名、姓名和密码为必填项");
+                return;
+            }
+
+            const url = id ? "update.php" : "create.php";
+            $.ajax({
+                url: url,
+                method: "POST",
+                contentType: "application/json",
+                data: JSON.stringify({ ...data, id: id }),
+                success: function(res) {
+                    if (res && res.message) {
+                        alert(res.message);
+                        if (res.success) {
+                            $("#userModal").css("display", "none");
+                            loadUserList();
+                        }
+                    } else {
+                        alert("保存失败，请重试");
+                    }
+                },
+                error: function(xhr, status, error) {
+                    alert("保存失败: " + error);
+                }
+            });
+        }
+
+        function showDeleteModal(id) {
+            $("#deleteUserId").val(id);
+            $("#deleteModal").css("display", "flex");
+        }
+
+        function deleteUser() {
+            const id = $("#deleteUserId").val();
+            $.post("delete.php", { id: id }, function(res) {
+                alert(res.message);
+                if (res.success) {
+                    $("#deleteModal").css("display", "none");
+                    loadUserList();
+                }
+            }, "json");
+        }
+
+        function changeStatus(id, status) {
+            $.ajax({
+                url: "status.php",
+                method: "POST",
+                data: { id: id, status: status },
+                dataType: "json",
+                success: function(res) {
+                    if (res && res.message) {
+                        alert(res.message);
+                        if (res.success) {
+                            loadUserList();
+                        }
+                    } else {
+                        alert("操作失败，请重试");
+                    }
+                },
+                error: function(xhr, status, error) {
+                    alert("操作失败: " + error);
+                }
+            });
+        }
+    </script>
+</body>
+</html>

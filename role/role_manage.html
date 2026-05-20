@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>角色管理 - 运维工单系统</title>
+    <link rel="stylesheet" href="../css/common.css">
+</head>
+<body>
+    <div class="header">
+        <div class="logo">
+            <div class="logo-icon">⚡</div>
+            运维工单系统
+        </div>
+        <div class="user-info">
+            <span class="user-name" id="userName">--</span>
+            <button class="btn-logout" id="btnLogout">退出登录</button>
+        </div>
+    </div>
+
+    <div class="sidebar">
+        <a href="../index.html" class="menu-item" id="menuTicket">工单管理</a>
+        <a href="../ops_system/ops_system_manage.html" class="menu-item" id="menuOpsSystem">运维系统管理</a>
+        <a href="../user/user_manage.html" class="menu-item" id="menuUser">用户管理</a>
+        <a href="../org/org_manage.html" class="menu-item" id="menuOrg">组织管理</a>
+        <a href="role_manage.html" class="menu-item active" id="menuRole">角色管理</a>
+    </div>
+
+    <div class="main-content">
+        <h3 class="page-title">角色管理</h3>
+
+        <div class="form-actions">
+            <button class="btn-submit" id="addRoleBtn">新增角色</button>
+        </div>
+
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>角色名称</th>
+                    <th>核心职责</th>
+                    <th>创建时间</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody id="roleTableBody"></tbody>
+        </table>
+
+        <div id="roleModal" class="modal">
+            <div class="modal-content">
+                <h3 id="modalTitle">新增角色</h3>
+                <input type="hidden" id="roleId">
+                <div class="form-group">
+                    <label>角色名称</label>
+                    <input type="text" id="roleName" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label>核心职责</label>
+                    <textarea id="description" class="form-control" rows="3"></textarea>
+                </div>
+                <div class="modal-actions">
+                    <button class="btn-cancel" id="cancelRoleBtn">取消</button>
+                    <button class="btn-confirm" id="saveRoleBtn">保存</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="permModal" class="modal">
+            <div class="modal-content">
+                <h3>分配权限 - <span id="modalRoleName"></span></h3>
+                <input type="hidden" id="currentRoleId">
+                <div id="permCheckboxes" class="perm-checkboxes"></div>
+                <div class="modal-actions">
+                    <button class="btn-cancel" id="cancelPermBtn">取消</button>
+                    <button class="btn-confirm" id="savePermBtn">保存权限</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="deleteModal" class="modal">
+            <div class="modal-content">
+                <h3>确认删除</h3>
+                <p>确定要删除该角色吗？删除后关联的用户将无法正常使用。</p>
+                <input type="hidden" id="deleteRoleId">
+                <div class="modal-actions">
+                    <button class="btn-cancel" id="cancelDeleteBtn">取消</button>
+                    <button class="btn-confirm" id="confirmDeleteBtn" style="background-color: #f56c6c;">确认删除</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="../js/jquery-3.6.4.min.js"></script>
+    <script>
+        $(function() {
+            $.ajaxSetup({
+                beforeSend: function(xhr) {
+                    const userInfo = localStorage.getItem('userInfo');
+                    if (userInfo) {
+                        try {
+                            const parsedUserInfo = JSON.parse(userInfo);
+                            xhr.setRequestHeader('Authorization', 'Bearer ' + parsedUserInfo.id);
+                        } catch (e) {
+                            console.error('解析用户信息失败', e);
+                        }
+                    }
+                }
+            });
+            
+            const userInfo = JSON.parse(localStorage.getItem('userInfo'));
+            if (!userInfo) {
+                window.location.href = '../login.html';
+                return;
+            }
+            
+            $('#userName').text(userInfo.name || userInfo.username);
+            
+            function controlMenuDisplay() {
+                const roleName = userInfo.role_name;
+                if (roleName === '系统管理员') {
+                } else if (roleName === '工单填报人员') {
+                    $("#menuOpsSystem, #menuUser, #menuOrg, #menuRole").hide();
+                } else if (roleName === '运维工程师') {
+                    $("#menuOpsSystem, #menuUser, #menuOrg, #menuRole").hide();
+                } else {
+                    $("#menuOpsSystem, #menuUser, #menuOrg, #menuRole").hide();
+                }
+            }
+            
+            controlMenuDisplay();
+            
+            loadRoleList();
+
+            $("#addRoleBtn").click(function() {
+                $("#modalTitle").text("新增角色");
+                $("#roleId").val("");
+                $("#roleName").val("");
+                $("#description").val("");
+                $("#roleModal").css("display", "flex");
+            });
+
+            $("#saveRoleBtn").click(saveRole);
+            
+            $("#cancelRoleBtn").click(function() {
+                $("#roleModal").css("display", "none");
+            });
+
+            $("#savePermBtn").click(savePermission);
+            
+            $("#cancelPermBtn").click(function() {
+                $("#permModal").css("display", "none");
+            });
+
+            $("#cancelDeleteBtn").click(function() {
+                $("#deleteModal").css("display", "none");
+            });
+
+            $("#confirmDeleteBtn").click(deleteRole);
+            
+            $('#btnLogout').click(function() {
+                localStorage.removeItem('userInfo');
+                window.location.href = '../login.html';
+            });
+        });
+
+        function loadRoleList() {
+            $.get("list.php", function(res) {
+                if (res.success) {
+                    let html = "";
+                    res.data.forEach(role => {
+                        html += `
+                            <tr>
+                                <td>${role.id}</td>
+                                <td>${role.role_name}</td>
+                                <td>${role.description || '-'}</td>
+                                <td>${role.create_time}</td>
+                                <td>
+                                    <button class="btn btn-edit" onclick="editRole(${role.id})">编辑</button>
+                                    <button class="btn btn-primary" onclick="showPermModal(${role.id}, '${role.role_name}')">分配权限</button>
+                                    <button class="btn btn-danger" onclick="showDeleteModal(${role.id})">删除</button>
+                                </td>
+                            </tr>
+                        `;
+                    });
+                    $("#roleTableBody").html(html);
+                } else {
+                    alert(res.message);
+                }
+            });
+        }
+
+        function editRole(id) {
+            $.get(`list.php?id=${id}`, function(res) {
+                if (res.success && res.data.length > 0) {
+                    const role = res.data[0];
+                    $("#modalTitle").text("编辑角色");
+                    $("#roleId").val(role.id);
+                    $("#roleName").val(role.role_name);
+                    $("#description").val(role.description);
+                    $("#roleModal").css("display", "flex");
+                }
+            });
+        }
+
+        function saveRole() {
+            const id = $("#roleId").val();
+            const data = {
+                role_name: $("#roleName").val(),
+                description: $("#description").val()
+            };
+
+            if (!data.role_name) {
+                alert("角色名称为必填项");
+                return;
+            }
+
+            const url = id ? "update.php" : "create.php";
+            $.ajax({
+                url: url,
+                method: "POST",
+                contentType: "application/json",
+                data: JSON.stringify({ ...data, id: id }),
+                success: function(res) {
+                    if (res && res.message) {
+                        alert(res.message);
+                        if (res.success) {
+                            $("#roleModal").css("display", "none");
+                            loadRoleList();
+                        }
+                    } else {
+                        alert("保存失败，请重试");
+                    }
+                },
+                error: function(xhr, status, error) {
+                    alert("保存失败: " + error);
+                }
+            });
+        }
+
+        function showPermModal(roleId, roleName) {
+            $("#currentRoleId").val(roleId);
+            $("#modalRoleName").text(roleName);
+            
+            $.get(`get_perms.php?role_id=${roleId}`, function(res) {
+                if (res.success) {
+                    let html = "";
+                    res.data.all_perms.forEach(perm => {
+                        const checked = res.data.role_perms.includes(perm.id) ? 'checked' : '';
+                        html += `
+                            <label>
+                                <input type="checkbox" value="${perm.id}" ${checked}> ${perm.perm_name} - ${perm.description || ''}
+                            </label>
+                        `;
+                    });
+                    $("#permCheckboxes").html(html);
+                    $("#permModal").css("display", "flex");
+                } else {
+                    alert(res.message);
+                }
+            });
+        }
+
+        function savePermission() {
+            const roleId = $("#currentRoleId").val();
+            const perms = [];
+            $("#permCheckboxes input:checked").each(function() {
+                perms.push($(this).val());
+            });
+
+            $.ajax({
+                url: "assign_perm.php",
+                method: "POST",
+                contentType: "application/json",
+                data: JSON.stringify({ role_id: roleId, perm_ids: perms }),
+                success: function(res) {
+                    if (res && res.message) {
+                        alert(res.message);
+                        if (res.success) {
+                            $("#permModal").css("display", "none");
+                        }
+                    } else {
+                        alert("保存失败，请重试");
+                    }
+                },
+                error: function(xhr, status, error) {
+                    alert("保存失败: " + error);
+                }
+            });
+        }
+
+        function showDeleteModal(id) {
+            $("#deleteRoleId").val(id);
+            $("#deleteModal").css("display", "flex");
+        }
+
+        function deleteRole() {
+            const id = $("#deleteRoleId").val();
+            $.post("delete.php", { id: id }, function(res) {
+                alert(res.message);
+                if (res.success) {
+                    $("#deleteModal").css("display", "none");
+                    loadRoleList();
+                }
+            }, "json");
+        }
+    </script>
+</body>
+</html>

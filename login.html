@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>运维工单系统 - 登录</title>
+    <!-- 引入jQuery（确保路径正确） -->
+    <script src="js/jquery-3.6.4.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: "Microsoft YaHei", sans-serif;
+        }
+        
+        body {
+            background-color: #f5f7fa;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .login-container {
+            width: 380px;
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+            padding: 30px;
+        }
+        
+        .login-title {
+            text-align: center;
+            font-size: 24px;
+            color: #1f2d3d;
+            margin-bottom: 30px;
+            font-weight: 500;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #4e5969;
+            font-size: 14px;
+        }
+        
+        .form-control {
+            width: 100%;
+            height: 44px;
+            padding: 0 15px;
+            border: 1px solid #c0ccda;
+            border-radius: 4px;
+            font-size: 14px;
+            transition: border-color 0.2s;
+        }
+        
+        .form-control:focus {
+            outline: none;
+            border-color: #409eff;
+            box-shadow: 0 0 0 2px rgba(64, 158, 255, 0.2);
+        }
+        
+        .captcha-group {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .captcha-group .form-control {
+            flex: 1;
+        }
+        
+        #captchaImg {
+            width: 120px;
+            height: 44px;
+            border-radius: 4px;
+            cursor: pointer;
+            object-fit: cover;
+            background-color: #f5f7fa;
+            border: 1px solid #e5e6eb;
+        }
+        
+        .error-message {
+            color: #f56c6c;
+            font-size: 12px;
+            height: 20px;
+            margin-top: 5px;
+            display: none;
+        }
+        
+        .btn-login {
+            width: 100%;
+            height: 44px;
+            background-color: #409eff;
+            color: #fff;
+            border: none;
+            border-radius: 4px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            margin-top: 10px;
+        }
+        
+        .btn-login:hover {
+            background-color: #66b1ff;
+        }
+        
+        .btn-login:active {
+            background-color: #3a8ee6;
+        }
+        
+        .btn-login:disabled {
+            background-color: #a0cfff;
+            cursor: not-allowed;
+        }
+        
+        .footer-text {
+            text-align: center;
+            margin-top: 20px;
+            color: #86909c;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <h2 class="login-title">运维工单系统</h2>
+        <form id="loginForm">
+            <div class="form-group">
+                <label for="username">用户名</label>
+                <input type="text" id="username" name="username" class="form-control" placeholder="请输入用户名" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="password">密码</label>
+                <input type="password" id="password" name="password" class="form-control" placeholder="请输入密码" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="captcha">验证码</label>
+                <div class="captcha-group">
+                    <input type="text" id="captcha" name="captcha" class="form-control" placeholder="请输入验证码" required>
+                    <img src="captcha.php" id="captchaImg" alt="验证码">
+                </div>
+                <div class="error-message" id="errorMsg"></div>
+            </div>
+            
+            <button type="submit" class="btn-login" id="loginBtn">登录</button>
+            <div class="footer-text">© 2026运维工单系统 版权所有</div>
+        </form>
+    </div>
+
+    <script>
+        $(function() {
+            // 元素缓存
+            const $loginForm = $("#loginForm");
+            const $errorMsg = $("#errorMsg");
+            const $username = $("#username");
+            const $password = $("#password");
+            const $captcha = $("#captcha");
+            const $captchaImg = $("#captchaImg");
+            const $loginBtn = $("#loginBtn");
+
+            // 刷新验证码（添加随机参数防止缓存）
+            function refreshCaptcha() {
+                $captchaImg.attr("src", `captcha.php?rand=${Math.random()}`);
+            }
+
+            // 初始化刷新验证码
+            refreshCaptcha();
+
+            // 点击验证码图片刷新
+            $captchaImg.click(refreshCaptcha);
+
+            // 显示错误信息
+            function showError(message) {
+                $errorMsg.text(message).show();
+                // 3秒后自动隐藏
+                setTimeout(() => {
+                    $errorMsg.hide();
+                }, 3000);
+            }
+
+            // 表单提交处理
+            $loginForm.submit(function(e) {
+                e.preventDefault();
+                $errorMsg.hide();
+
+                // 前端基础验证
+                const username = $username.val().trim();
+                const password = $password.val().trim();
+                const captcha = $captcha.val().trim();
+
+                if (!username) {
+                    showError("请输入用户名");
+                    $username.focus();
+                    return;
+                }
+
+                if (!password) {
+                    showError("请输入密码");
+                    $password.focus();
+                    return;
+                }
+
+                if (!captcha) {
+                    showError("请输入验证码");
+                    $captcha.focus();
+                    return;
+                }
+
+                // 禁用登录按钮防止重复提交
+                $loginBtn.prop("disabled", true).text("登录中...");
+
+                // 发送登录请求
+                $.ajax({
+                    url: "login.php",  // 后端登录接口
+                    method: "POST",
+                    contentType: "application/json",
+                    data: JSON.stringify({
+                        username: username,
+                        password: password,
+                        captcha: captcha
+                    }),
+                    dataType: "json",
+                    timeout: 5000,  // 5秒超时
+                    success: function(res) {
+                        if (res.success) {
+                            // 登录成功：存储用户信息并跳转首页
+                            localStorage.setItem("userInfo", JSON.stringify(res.data));
+                            window.location.href = "index.html";  // 首页路径
+                        } else {
+                            // 登录失败处理
+                            showError(res.message || "登录失败，请重试");
+                            // 验证码错误时自动刷新验证码
+                            if (res.message.includes("验证码")) {
+                                refreshCaptcha();
+                                $captcha.val("").focus();
+                            }
+                        }
+                    },
+                    error: function(xhr, status) {
+                        // 网络错误或超时处理
+                        if (status === "timeout") {
+                            showError("登录超时，请重试");
+                        } else {
+                            showError("网络错误，请检查网络连接");
+                        }
+                        refreshCaptcha();  // 网络错误时也刷新验证码
+                    },
+                    complete: function() {
+                        // 恢复登录按钮状态
+                        $loginBtn.prop("disabled", false).text("登录");
+                    }
+                });
+            });
+
+            // 输入框键盘事件：按Enter自动跳到下一个
+            $username.keydown(function(e) {
+                if (e.key === "Enter") $password.focus();
+            });
+            $password.keydown(function(e) {
+                if (e.key === "Enter") $captcha.focus();
+            });
+            $captcha.keydown(function(e) {
+                if (e.key === "Enter") $loginBtn.click();
+            });
+        });
+    </script>
+</body>
+</html>
